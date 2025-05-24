@@ -3,6 +3,8 @@
 import type React from "react"
 
 import { useState } from "react"
+import { signIn, getSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,24 +16,36 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
 
-    // Aquí iría la lógica de autenticación con Supabase
-    // Por ejemplo:
-    // const { data, error } = await supabase.auth.signInWithPassword({
-    //   email,
-    //   password,
-    // })
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
 
-    // Simulando un delay para la demo
-    setTimeout(() => {
+      if (result?.error) {
+        setError("Credenciales inválidas")
+      } else {
+        // Verificar que la sesión se creó correctamente
+        const session = await getSession()
+        if (session) {
+          router.push("/")
+          router.refresh()
+        }
+      }
+    } catch (error) {
+      setError("Error al iniciar sesión")
+    } finally {
       setIsLoading(false)
-      // Redirección después del login exitoso
-      // if (!error) window.location.href = "/"
-    }, 1500)
+    }
   }
 
   return (
@@ -43,12 +57,13 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {error && <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">{error}</div>}
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="tu@email.com"
+                placeholder="admin@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -64,10 +79,12 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                placeholder="password123"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground">Para testing: usa "admin@example.com" y "password123"</p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
