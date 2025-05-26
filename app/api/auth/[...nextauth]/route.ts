@@ -1,9 +1,6 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { createClient } from "@supabase/supabase-js"
 import type { NextAuthOptions } from "next-auth"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -18,29 +15,23 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        try {
-          // Verificar si el usuario existe en nuestra tabla users
-          const { data: user, error } = await supabase.from("users").select("*").eq("email", credentials.email).single()
+        // Para testing - usuarios hardcodeados
+        const testUsers = [
+          { id: "1", email: "admin@example.com", name: "Administrador" },
+          { id: "2", email: "user@example.com", name: "Usuario de Prueba" },
+        ]
 
-          if (error || !user) {
-            return null
+        const user = testUsers.find((u) => u.email === credentials.email)
+
+        if (user && credentials.password === "password123") {
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
           }
-
-          // En un caso real, aquí verificarías la contraseña hasheada
-          // Por ahora, usamos una contraseña simple para testing
-          if (credentials.password === "password123") {
-            return {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-            }
-          }
-
-          return null
-        } catch (error) {
-          console.error("Error during authentication:", error)
-          return null
         }
+
+        return null
       },
     }),
   ],
@@ -64,6 +55,7 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
+  secret: process.env.NEXTAUTH_SECRET,
 }
 
 const handler = NextAuth(authOptions)

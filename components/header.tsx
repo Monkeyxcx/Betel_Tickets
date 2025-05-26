@@ -5,10 +5,12 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
 import { usePathname } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
+  const { user, loading, signOut } = useAuth()
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -46,12 +48,25 @@ export default function Header() {
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/login">Iniciar Sesión</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/register">Registrarse</Link>
-          </Button>
+          {loading ? (
+            <div className="text-sm">Cargando...</div>
+          ) : user ? (
+            <div className="flex items-center gap-4">
+              <span className="text-sm">Hola, {user.name}</span>
+              <Button onClick={signOut} variant="outline" size="sm">
+                Cerrar Sesión
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/login">Iniciar Sesión</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/register">Registrarse</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -79,16 +94,36 @@ export default function Header() {
               ))}
             </nav>
             <div className="flex flex-col space-y-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/login" onClick={() => setIsMenuOpen(false)}>
-                  Iniciar Sesión
-                </Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
-                  Registrarse
-                </Link>
-              </Button>
+              {loading ? (
+                <div className="text-sm">Cargando...</div>
+              ) : user ? (
+                <div className="flex flex-col space-y-2">
+                  <span className="text-sm">Hola, {user.name}</span>
+                  <Button
+                    onClick={() => {
+                      setIsMenuOpen(false)
+                      signOut()
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Cerrar Sesión
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                      Iniciar Sesión
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm">
+                    <Link href="/register" onClick={() => setIsMenuOpen(false)}>
+                      Registrarse
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
