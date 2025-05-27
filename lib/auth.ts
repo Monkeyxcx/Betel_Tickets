@@ -32,7 +32,7 @@ export async function signUp(
 
     if (authData.user) {
       // Crear usuario en nuestra tabla personalizada
-      const { data: userData, error: userError } = await supabase
+      const result = await supabase
         .from("users")
         .upsert([
           {
@@ -44,9 +44,12 @@ export async function signUp(
         .select()
         .single()
 
+      console.log("Upsert result:", result)
+
+      const { data: userData, error: userError, status, statusText } = result
+
       if (userError) {
-        console.error("Error creating user record:", userError)
-        // Continuar aunque falle la inserción en la tabla personalizada
+        console.error("Error creating user record:", userError, status, statusText)
       }
 
       const user: User = {

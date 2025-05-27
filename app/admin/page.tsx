@@ -1,8 +1,11 @@
+"use client"
+
+import { AuthGuard } from "@/components/auth-guard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart3, CalendarDays, CreditCard, Users, Ticket } from "lucide-react"
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
   return (
     <div className="container py-12">
       <h1 className="text-3xl font-bold mb-6">Panel de Administración</h1>
@@ -94,5 +97,13 @@ export default function AdminDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function AdminDashboard() {
+  return (
+    <AuthGuard requireAuth={true} adminOnly={true}>
+      <AdminDashboardContent />
+    </AuthGuard>
   )
 }

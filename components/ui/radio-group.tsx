@@ -1,44 +1,68 @@
 "use client"
 
 import * as React from "react"
-import * as RadioGroupPrimitive from "@radix-ui/react-radio-group"
-import { CircleIcon } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 
-function RadioGroup({
-  className,
-  ...props
-}: React.ComponentProps<typeof RadioGroupPrimitive.Root>) {
+interface RadioGroupProps {
+  value?: string
+  onValueChange?: (value: string) => void
+  children: React.ReactNode
+  className?: string
+}
+
+interface RadioGroupItemProps {
+  value: string
+  id?: string
+  className?: string
+}
+
+const RadioGroupContext = React.createContext<{
+  selectedValue: string
+  onValueChange: (value: string) => void
+}>({
+  selectedValue: "",
+  onValueChange: () => {},
+})
+
+const RadioGroup: React.FC<RadioGroupProps> = ({ value = "", onValueChange = () => {}, children, className }) => {
+  const [selectedValue, setSelectedValue] = React.useState(value)
+
+  React.useEffect(() => {
+    setSelectedValue(value)
+  }, [value])
+
+  const handleValueChange = (newValue: string) => {
+    setSelectedValue(newValue)
+    onValueChange(newValue)
+  }
+
   return (
-    <RadioGroupPrimitive.Root
-      data-slot="radio-group"
-      className={cn("grid gap-3", className)}
-      {...props}
-    />
+    <RadioGroupContext.Provider value={{ selectedValue, onValueChange: handleValueChange }}>
+      <div className={cn("grid gap-2", className)}>{children}</div>
+    </RadioGroupContext.Provider>
   )
 }
 
-function RadioGroupItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof RadioGroupPrimitive.Item>) {
+const RadioGroupItem: React.FC<RadioGroupItemProps> = ({ value, id, className }) => {
+  const { selectedValue, onValueChange } = React.useContext(RadioGroupContext)
+  const isSelected = selectedValue === value
+
   return (
-    <RadioGroupPrimitive.Item
-      data-slot="radio-group-item"
+    <button
+      type="button"
+      id={id}
+      onClick={() => onValueChange(value)}
       className={cn(
-        "border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 aspect-square size-4 shrink-0 rounded-full border shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-        className
+        "aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        className,
       )}
-      {...props}
     >
-      <RadioGroupPrimitive.Indicator
-        data-slot="radio-group-indicator"
-        className="relative flex items-center justify-center"
-      >
-        <CircleIcon className="fill-primary absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2" />
-      </RadioGroupPrimitive.Indicator>
-    </RadioGroupPrimitive.Item>
+      {isSelected && (
+        <div className="flex items-center justify-center">
+          <div className="h-2.5 w-2.5 rounded-full bg-current" />
+        </div>
+      )}
+    </button>
   )
 }
 
