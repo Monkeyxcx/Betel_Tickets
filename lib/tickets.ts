@@ -1,9 +1,16 @@
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { supabase } from "./supabase"
 
 export interface TicketType {
   id: string
+  event_id: string
+  name: string
+  price: number
+  description: string
+  max_quantity: number
+  available_quantity: number
+}
+
+export interface CreateTicketTypeData {
   event_id: string
   name: string
   price: number
@@ -41,6 +48,7 @@ export interface Ticket {
 // Obtener tipos de tickets disponibles
 export async function getTicketTypes(): Promise<{ data: TicketType[] | null; error: string | null }> {
   try {
+    console.log("Fetching available ticket types")
     const { data, error } = await supabase
       .from("ticket_types")
       .select("*")
@@ -48,12 +56,102 @@ export async function getTicketTypes(): Promise<{ data: TicketType[] | null; err
       .order("price", { ascending: true })
 
     if (error) {
+      console.error("Supabase error in getTicketTypes:", error)
       return { data: null, error: error.message }
     }
 
+    console.log("Fetched", data?.length || 0, "ticket types")
     return { data, error: null }
   } catch (error) {
+    console.error("Error in getTicketTypes:", error)
     return { data: null, error: "Error al obtener tipos de tickets" }
+  }
+}
+
+// Obtener tipos de tickets por evento específico
+export async function getTicketTypesByEvent(
+  eventId: string,
+): Promise<{ data: TicketType[] | null; error: string | null }> {
+  try {
+    console.log("Fetching ticket types for event:", eventId)
+    const { data, error } = await supabase
+      .from("ticket_types")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("price", { ascending: true })
+
+    if (error) {
+      console.error("Supabase error in getTicketTypesByEvent:", error)
+      return { data: null, error: error.message }
+    }
+
+    console.log("Fetched", data?.length || 0, "ticket types for event", eventId)
+    return { data, error: null }
+  } catch (error) {
+    console.error("Error in getTicketTypesByEvent:", error)
+    return { data: null, error: "Error al obtener tipos de tickets del evento" }
+  }
+}
+
+// Crear nuevo tipo de ticket
+export async function createTicketType(
+  ticketData: CreateTicketTypeData,
+): Promise<{ data: TicketType | null; error: string | null }> {
+  try {
+    console.log("Creating ticket type:", ticketData.name)
+    const { data, error } = await supabase.from("ticket_types").insert([ticketData]).select().single()
+
+    if (error) {
+      console.error("Supabase error in createTicketType:", error)
+      return { data: null, error: error.message }
+    }
+
+    console.log("Ticket type created successfully:", data.id)
+    return { data, error: null }
+  } catch (error) {
+    console.error("Error in createTicketType:", error)
+    return { data: null, error: "Error al crear tipo de ticket" }
+  }
+}
+
+// Actualizar tipo de ticket
+export async function updateTicketType(
+  ticketId: string,
+  ticketData: Partial<CreateTicketTypeData>,
+): Promise<{ data: TicketType | null; error: string | null }> {
+  try {
+    console.log("Updating ticket type:", ticketId)
+    const { data, error } = await supabase.from("ticket_types").update(ticketData).eq("id", ticketId).select().single()
+
+    if (error) {
+      console.error("Supabase error in updateTicketType:", error)
+      return { data: null, error: error.message }
+    }
+
+    console.log("Ticket type updated successfully:", ticketId)
+    return { data, error: null }
+  } catch (error) {
+    console.error("Error in updateTicketType:", error)
+    return { data: null, error: "Error al actualizar tipo de ticket" }
+  }
+}
+
+// Eliminar tipo de ticket
+export async function deleteTicketType(ticketId: string): Promise<{ success: boolean; error: string | null }> {
+  try {
+    console.log("Deleting ticket type:", ticketId)
+    const { error } = await supabase.from("ticket_types").delete().eq("id", ticketId)
+
+    if (error) {
+      console.error("Supabase error in deleteTicketType:", error)
+      return { success: false, error: error.message }
+    }
+
+    console.log("Ticket type deleted successfully:", ticketId)
+    return { success: true, error: null }
+  } catch (error) {
+    console.error("Error in deleteTicketType:", error)
+    return { success: false, error: "Error al eliminar tipo de ticket" }
   }
 }
 
@@ -74,6 +172,8 @@ export async function createOrder(
   quantity: number,
 ): Promise<{ data: Order | null; error: string | null }> {
   try {
+    console.log("Creating order for user:", userId, "ticket type:", ticketTypeId, "quantity:", quantity)
+
     // Obtener información del tipo de ticket
     const { data: ticketType, error: ticketTypeError } = await supabase
       .from("ticket_types")
@@ -82,6 +182,7 @@ export async function createOrder(
       .single()
 
     if (ticketTypeError || !ticketType) {
+      console.error("Error fetching ticket type:", ticketTypeError)
       return { data: null, error: "Tipo de ticket no encontrado" }
     }
 
@@ -107,6 +208,7 @@ export async function createOrder(
       .single()
 
     if (orderError || !order) {
+      console.error("Error creating order:", orderError)
       return { data: null, error: "Error al crear la orden" }
     }
 
@@ -125,6 +227,7 @@ export async function createOrder(
     const { error: ticketsError } = await supabase.from("tickets").insert(ticketsToCreate)
 
     if (ticketsError) {
+      console.error("Error creating tickets:", ticketsError)
       // Si falla la creación de tickets, eliminar la orden
       await supabase.from("orders").delete().eq("id", order.id)
       return { data: null, error: "Error al crear los tickets" }
@@ -142,8 +245,10 @@ export async function createOrder(
       console.error("Error updating ticket quantity:", updateError)
     }
 
+    console.log("Order created successfully:", order.id)
     return { data: order, error: null }
   } catch (error) {
+    console.error("Error in createOrder:", error)
     return { data: null, error: "Error al procesar la orden" }
   }
 }
@@ -151,6 +256,7 @@ export async function createOrder(
 // Obtener tickets del usuario
 export async function getUserTickets(userId: string): Promise<{ data: Ticket[] | null; error: string | null }> {
   try {
+    console.log("Fetching tickets for user:", userId)
     const { data, error } = await supabase
       .from("tickets")
       .select(
@@ -165,6 +271,7 @@ export async function getUserTickets(userId: string): Promise<{ data: Ticket[] |
       .order("created_at", { ascending: false })
 
     if (error) {
+      console.error("Supabase error in getUserTickets:", error)
       return { data: null, error: error.message }
     }
 
@@ -184,8 +291,10 @@ export async function getUserTickets(userId: string): Promise<{ data: Ticket[] |
       }),
     )
 
+    console.log("Fetched", ticketsWithEvents.length, "tickets for user", userId)
     return { data: ticketsWithEvents, error: null }
   } catch (error) {
+    console.error("Error in getUserTickets:", error)
     return { data: null, error: "Error al obtener tickets" }
   }
 }
@@ -193,6 +302,7 @@ export async function getUserTickets(userId: string): Promise<{ data: Ticket[] |
 // Obtener órdenes del usuario
 export async function getUserOrders(userId: string): Promise<{ data: Order[] | null; error: string | null }> {
   try {
+    console.log("Fetching orders for user:", userId)
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -200,11 +310,14 @@ export async function getUserOrders(userId: string): Promise<{ data: Order[] | n
       .order("created_at", { ascending: false })
 
     if (error) {
+      console.error("Supabase error in getUserOrders:", error)
       return { data: null, error: error.message }
     }
 
+    console.log("Fetched", data?.length || 0, "orders for user", userId)
     return { data, error: null }
   } catch (error) {
+    console.error("Error in getUserOrders:", error)
     return { data: null, error: "Error al obtener órdenes" }
   }
 }
@@ -212,6 +325,7 @@ export async function getUserOrders(userId: string): Promise<{ data: Order[] | n
 // Validar ticket por código
 export async function validateTicket(ticketCode: string): Promise<{ data: Ticket | null; error: string | null }> {
   try {
+    console.log("Validating ticket:", ticketCode)
     const { data, error } = await supabase
       .from("tickets")
       .select(
@@ -225,6 +339,7 @@ export async function validateTicket(ticketCode: string): Promise<{ data: Ticket
       .single()
 
     if (error) {
+      console.error("Supabase error in validateTicket:", error)
       return { data: null, error: "Ticket no encontrado" }
     }
 
@@ -232,8 +347,10 @@ export async function validateTicket(ticketCode: string): Promise<{ data: Ticket
       return { data: null, error: "Ticket ya utilizado o cancelado" }
     }
 
+    console.log("Ticket validated successfully:", ticketCode)
     return { data, error: null }
   } catch (error) {
+    console.error("Error in validateTicket:", error)
     return { data: null, error: "Error al validar ticket" }
   }
 }
@@ -241,14 +358,18 @@ export async function validateTicket(ticketCode: string): Promise<{ data: Ticket
 // Marcar ticket como usado
 export async function useTicket(ticketId: string): Promise<{ success: boolean; error: string | null }> {
   try {
+    console.log("Marking ticket as used:", ticketId)
     const { error } = await supabase.from("tickets").update({ status: "used" }).eq("id", ticketId)
 
     if (error) {
+      console.error("Supabase error in useTicket:", error)
       return { success: false, error: error.message }
     }
 
+    console.log("Ticket marked as used successfully:", ticketId)
     return { success: true, error: null }
   } catch (error) {
+    console.error("Error in useTicket:", error)
     return { success: false, error: "Error al marcar ticket como usado" }
   }
 }

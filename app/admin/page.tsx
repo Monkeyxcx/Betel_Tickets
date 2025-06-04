@@ -3,12 +3,22 @@
 import { AuthGuard } from "@/components/auth-guard"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart3, CalendarDays, CreditCard, Users, Ticket } from "lucide-react"
+import { BarChart3, CalendarDays, CreditCard, Users, Ticket, Plus } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 function AdminDashboardContent() {
   return (
     <div className="container py-12">
-      <h1 className="text-3xl font-bold mb-6">Panel de Administración</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Panel de Administración</h1>
+        <Button asChild>
+          <Link href="/admin/events" className="flex items-center">
+            <Plus className="mr-2 h-4 w-4" />
+            Gestionar Eventos
+          </Link>
+        </Button>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -43,12 +53,12 @@ function AdminDashboardContent() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Días Restantes</CardTitle>
+            <CardTitle className="text-sm font-medium">Eventos Activos</CardTitle>
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">15</div>
-            <p className="text-xs text-muted-foreground">Hasta el evento</p>
+            <div className="text-2xl font-bold">5</div>
+            <p className="text-xs text-muted-foreground">Próximos eventos</p>
           </CardContent>
         </Card>
       </div>

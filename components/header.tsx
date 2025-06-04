@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, User } from "lucide-react"
+import { Menu, X, User, Plus } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import {
@@ -83,6 +83,12 @@ export default function Header() {
                     <DropdownMenuItem asChild>
                       <Link href="/admin">Panel de Admin</Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/events" className="flex items-center">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Gestionar Eventos
+                      </Link>
+                    </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
@@ -137,11 +143,19 @@ export default function Header() {
                     </Link>
                   </Button>
                   {user.email === "admin@example.com" && (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
-                        Panel de Admin
-                      </Link>
-                    </Button>
+                    <>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
+                          Panel de Admin
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/admin/events" onClick={() => setIsMenuOpen(false)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Gestionar Eventos
+                        </Link>
+                      </Button>
+                    </>
                   )}
                   <Button
                     onClick={() => {

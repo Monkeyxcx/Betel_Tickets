@@ -10,16 +10,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
-import { Loader2, Ticket } from "lucide-react"
+import { Loader2, Ticket, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
-import { getTicketTypes, createOrder, type TicketType } from "@/lib/tickets"
+import { getTicketTypes, getTicketTypesByEvent, createOrder, type TicketType } from "@/lib/tickets"
+import { getEventById, type Event } from "@/lib/events"
 
 export default function TicketsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useAuth()
+
+  const eventId = searchParams.get("event")
   const initialTicketType = searchParams.get("type") || ""
 
+  const [event, setEvent] = useState<Event | null>(null)
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
   const [selectedTicketType, setSelectedTicketType] = useState<TicketType | null>(null)
   const [ticketTypeId, setTicketTypeId] = useState(initialTicketType)
@@ -28,32 +33,61 @@ export default function TicketsPage() {
   const [isLoadingTypes, setIsLoadingTypes] = useState(true)
   const [error, setError] = useState("")
 
-  // Cargar tipos de tickets
+  // Cargar evento y tipos de tickets
   useEffect(() => {
-    const loadTicketTypes = async () => {
-      const { data, error } = await getTicketTypes()
-      if (error) {
-        setError(error)
-      } else if (data) {
-        setTicketTypes(data)
-        // Si hay un tipo inicial, seleccionarlo
-        if (initialTicketType) {
-          const initialType = data.find((t) => t.name === initialTicketType)
-          if (initialType) {
-            setTicketTypeId(initialType.id)
-            setSelectedTicketType(initialType)
+    const loadData = async () => {
+      try {
+        if (eventId) {
+          // Cargar información del evento específico
+          const { data: eventData, error: eventError } = await getEventById(eventId)
+          if (eventError) {
+            setError(eventError)
+          } else if (eventData) {
+            setEvent(eventData)
           }
-        } else if (data.length > 0) {
-          // Seleccionar el primer tipo por defecto
-          setTicketTypeId(data[0].id)
-          setSelectedTicketType(data[0])
+
+          // Cargar tipos de tickets del evento específico
+          const { data: ticketTypesData, error: ticketTypesError } = await getTicketTypesByEvent(eventId)
+          if (ticketTypesError) {
+            setError(ticketTypesError)
+          } else if (ticketTypesData) {
+            setTicketTypes(ticketTypesData)
+
+            // Si hay un tipo inicial, seleccionarlo
+            if (initialTicketType) {
+              const initialType = ticketTypesData.find((t) => t.name === initialTicketType)
+              if (initialType) {
+                setTicketTypeId(initialType.id)
+                setSelectedTicketType(initialType)
+              }
+            } else if (ticketTypesData.length > 0) {
+              // Seleccionar el primer tipo por defecto
+              setTicketTypeId(ticketTypesData[0].id)
+              setSelectedTicketType(ticketTypesData[0])
+            }
+          }
+        } else {
+          // Cargar todos los tipos de tickets si no hay evento específico
+          const { data: allTicketTypes, error: allTicketTypesError } = await getTicketTypes()
+          if (allTicketTypesError) {
+            setError(allTicketTypesError)
+          } else if (allTicketTypes) {
+            setTicketTypes(allTicketTypes)
+            if (allTicketTypes.length > 0) {
+              setTicketTypeId(allTicketTypes[0].id)
+              setSelectedTicketType(allTicketTypes[0])
+            }
+          }
         }
+      } catch (error) {
+        setError("Error al cargar la información")
+      } finally {
+        setIsLoadingTypes(false)
       }
-      setIsLoadingTypes(false)
     }
 
-    loadTicketTypes()
-  }, [initialTicketType])
+    loadData()
+  }, [eventId, initialTicketType])
 
   // Actualizar ticket seleccionado cuando cambia el ID
   useEffect(() => {
@@ -116,7 +150,17 @@ export default function TicketsPage() {
         <div className="text-center">
           <Ticket className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">No hay tickets disponibles</h1>
-          <p className="text-muted-foreground">Los tickets para este evento no están disponibles en este momento.</p>
+          <p className="text-muted-foreground mb-6">
+            {event
+              ? `Los tickets para ${event.name} no están disponibles en este momento.`
+              : "No hay tickets disponibles en este momento."}
+          </p>
+          <Button asChild>
+            <Link href={event ? `/events/${event.id}` : "/"}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver
+            </Link>
+          </Button>
         </div>
       </div>
     )
@@ -125,7 +169,17 @@ export default function TicketsPage() {
   return (
     <div className="container py-12">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Comprar Tickets</h1>
+        {/* Breadcrumb */}
+        <div className="mb-6">
+          <Button asChild variant="ghost" className="mb-4">
+            <Link href={event ? `/events/${event.id}` : "/"}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {event ? `Volver a ${event.name}` : "Volver al inicio"}
+            </Link>
+          </Button>
+        </div>
+
+        <h1 className="text-3xl font-bold mb-6">{event ? `Comprar Tickets - ${event.name}` : "Comprar Tickets"}</h1>
 
         {error && <div className="mb-6 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">{error}</div>}
 
@@ -194,6 +248,25 @@ export default function TicketsPage() {
                 <CardTitle>Resumen de compra</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {event && (
+                  <>
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <h3 className="font-semibold">{event.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(event.event_date).toLocaleDateString("es-ES", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{event.location}</p>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
                 {selectedTicketType ? (
                   <>
                     <div className="flex justify-between items-center">

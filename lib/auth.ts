@@ -1,6 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { supabase } from "./supabase"
 
 export interface User {
   id: string
@@ -14,6 +12,8 @@ export async function signUp(
   name: string,
 ): Promise<{ user: User | null; error: string | null }> {
   try {
+    console.log("Attempting to sign up user:", email)
+
     // Registrar usuario en Supabase Auth sin confirmación de email
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -27,12 +27,15 @@ export async function signUp(
     })
 
     if (authError) {
+      console.error("Auth signup error:", authError)
       return { user: null, error: authError.message }
     }
 
     if (authData.user) {
+      console.log("User signed up successfully:", authData.user.id)
+
       // Crear usuario en nuestra tabla personalizada
-      const result = await supabase
+      const { data: userData, error: userError } = await supabase
         .from("users")
         .upsert([
           {
@@ -44,12 +47,9 @@ export async function signUp(
         .select()
         .single()
 
-      console.log("Upsert result:", result)
-
-      const { data: userData, error: userError, status, statusText } = result
-
       if (userError) {
-        console.error("Error creating user record:", userError, status, statusText)
+        console.error("Error creating user record:", userError)
+        // Continuar aunque falle la inserción en la tabla personalizada
       }
 
       const user: User = {
@@ -68,12 +68,15 @@ export async function signUp(
 
     return { user: null, error: "Error al crear la cuenta" }
   } catch (error) {
+    console.error("Signup error:", error)
     return { user: null, error: "Error al registrar usuario" }
   }
 }
 
 export async function signIn(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
   try {
+    console.log("Attempting to sign in user:", email)
+
     // Intentar login con Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -81,6 +84,7 @@ export async function signIn(email: string, password: string): Promise<{ user: U
     })
 
     if (authError) {
+      console.error("Auth signin error:", authError)
       // Personalizar mensajes de error
       let errorMessage = authError.message
       if (authError.message.includes("Invalid login credentials")) {
@@ -92,12 +96,18 @@ export async function signIn(email: string, password: string): Promise<{ user: U
     }
 
     if (authData.user) {
+      console.log("User signed in successfully:", authData.user.id)
+
       // Obtener datos del usuario de nuestra tabla
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("*")
         .eq("id", authData.user.id)
         .single()
+
+      if (userError) {
+        console.error("Error fetching user data:", userError)
+      }
 
       const user: User = {
         id: authData.user.id,
@@ -115,6 +125,7 @@ export async function signIn(email: string, password: string): Promise<{ user: U
 
     return { user: null, error: "Credenciales inválidas" }
   } catch (error) {
+    console.error("Signin error:", error)
     return { user: null, error: "Error al iniciar sesión" }
   }
 }
@@ -129,17 +140,20 @@ export async function signInWithGoogle(): Promise<{ user: User | null; error: st
     })
 
     if (error) {
+      console.error("Google signin error:", error)
       return { user: null, error: error.message }
     }
 
     return { user: null, error: null } // El usuario se manejará en el callback
   } catch (error) {
+    console.error("Google signin error:", error)
     return { user: null, error: "Error al iniciar sesión con Google" }
   }
 }
 
 export async function signOut(): Promise<void> {
   try {
+    console.log("Signing out user")
     await supabase.auth.signOut()
   } catch (error) {
     console.error("Error signing out:", error)
@@ -167,9 +181,15 @@ export function getCurrentUser(): User | null {
 // Función para manejar cambios de autenticación
 export function onAuthStateChange(callback: (user: User | null) => void) {
   return supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("Auth state changed:", event, session?.user?.id)
+
     if (session?.user) {
       // Obtener datos del usuario
-      const { data: userData } = await supabase.from("users").select("*").eq("id", session.user.id).single()
+      const { data: userData, error } = await supabase.from("users").select("*").eq("id", session.user.id).single()
+
+      if (error) {
+        console.error("Error fetching user data on auth change:", error)
+      }
 
       const user: User = {
         id: session.user.id,
@@ -193,17 +213,34 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
 // Función para verificar si el usuario actual está autenticado
 export async function checkAuthStatus(): Promise<User | null> {
   try {
+    console.log("Checking auth status")
     const {
       data: { session },
       error,
     } = await supabase.auth.getSession()
 
-    if (error || !session?.user) {
+    if (error) {
+      console.error("Error checking auth status:", error)
       return null
     }
 
+    if (!session?.user) {
+      console.log("No active session found")
+      return null
+    }
+
+    console.log("Active session found for user:", session.user.id)
+
     // Obtener datos del usuario de nuestra tabla
-    const { data: userData } = await supabase.from("users").select("*").eq("id", session.user.id).single()
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", session.user.id)
+      .single()
+
+    if (userError) {
+      console.error("Error fetching user data:", userError)
+    }
 
     const user: User = {
       id: session.user.id,
