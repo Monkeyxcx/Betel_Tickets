@@ -3,9 +3,10 @@
 import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, User, Plus } from "lucide-react"
+import { Menu, X, User, Plus, QrCode, Settings } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { useRole } from "@/hooks/use-role"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,11 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
   const { user, loading, signOut } = useAuth()
+  const { isAdmin, isStaff, role } = useRole()
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -25,13 +28,17 @@ export default function Header() {
 
   const navigation = [
     { name: "Inicio", href: "/" },
-    { name: "Tickets", href: "/tickets" },
+    // { name: "Tickets", href: "/tickets" },
     { name: "Información", href: "/#info" },
     { name: "Contacto", href: "/contacto" },
   ]
 
-  // Agregar enlace de admin si es administrador
-  if (user?.email === "admin@example.com") {
+  // Agregar enlaces específicos por rol
+  if (isStaff) {
+    navigation.push({ name: "Escáner", href: "/staff/scanner" })
+  }
+
+  if (isAdmin) {
     navigation.push({ name: "Admin", href: "/admin" })
   }
 
@@ -40,7 +47,7 @@ export default function Header() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="font-bold text-xl">
-            EventoTickets
+            BetelTickets
           </Link>
         </div>
 
@@ -67,17 +74,35 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  {user.name}
+                  <span>{user.name}</span>
+                  {role && role !== "user" && (
+                    <Badge variant="secondary" className="text-xs">
+                      {role.toUpperCase()}
+                    </Badge>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
                   <Link href="/profile">Mi Perfil</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/tickets">Mis Tickets</Link>
-                </DropdownMenuItem>
-                {user.email === "admin@example.com" && (
+                {/* <DropdownMenuItem asChild>
+                  <Link href="/profile">Mis Tickets</Link>
+                </DropdownMenuItem> */}
+
+                {isStaff && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/staff/scanner" className="flex items-center">
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Escáner de Tickets
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
@@ -89,8 +114,15 @@ export default function Header() {
                         Gestionar Eventos
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/staff" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Gestionar Staff
+                      </Link>
+                    </DropdownMenuItem>
                   </>
                 )}
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut}>Cerrar Sesión</DropdownMenuItem>
               </DropdownMenuContent>
@@ -136,13 +168,31 @@ export default function Header() {
                 <div className="text-sm">Cargando...</div>
               ) : user ? (
                 <div className="flex flex-col space-y-2">
-                  <span className="text-sm">Hola, {user.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Hola, {user.name}</span>
+                    {role && role !== "user" && (
+                      <Badge variant="secondary" className="text-xs">
+                        {role.toUpperCase()}
+                      </Badge>
+                    )}
+                  </div>
+
                   <Button asChild variant="outline" size="sm">
                     <Link href="/profile" onClick={() => setIsMenuOpen(false)}>
                       Mi Perfil
                     </Link>
                   </Button>
-                  {user.email === "admin@example.com" && (
+
+                  {isStaff && (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/staff/scanner" onClick={() => setIsMenuOpen(false)}>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Escáner de Tickets
+                      </Link>
+                    </Button>
+                  )}
+
+                  {isAdmin && (
                     <>
                       <Button asChild variant="outline" size="sm">
                         <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
@@ -155,8 +205,15 @@ export default function Header() {
                           Gestionar Eventos
                         </Link>
                       </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/admin/staff" onClick={() => setIsMenuOpen(false)}>
+                          <Settings className="mr-2 h-4 w-4" />
+                          Gestionar Staff
+                        </Link>
+                      </Button>
                     </>
                   )}
+
                   <Button
                     onClick={() => {
                       setIsMenuOpen(false)

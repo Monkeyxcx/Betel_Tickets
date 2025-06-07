@@ -40,27 +40,27 @@ export function EventCarousel({ title, events, featured = false }: EventCarousel
   if (events.length === 0) return null
 
   return (
-    <div className="relative group">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">{title}</h2>
-        <div className="flex gap-2">
+    <div className="relative group px-4 py-6 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{title}</h2>
+        <div className="flex gap-1">
           <Button
             variant="outline"
             size="sm"
             onClick={() => scroll("left")}
             disabled={!canScrollLeft}
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3 w-3" />
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => scroll("right")}
             disabled={!canScrollRight}
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3 w-3" />
           </Button>
         </div>
       </div>
