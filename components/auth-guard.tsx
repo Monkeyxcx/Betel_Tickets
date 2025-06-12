@@ -14,7 +14,7 @@ interface AuthGuardProps {
   redirectTo?: string
   adminOnly?: boolean
   staffOnly?: boolean
-  allowedRoles?: ("user" | "staff" | "admin")[]
+  allowedRoles?: string[]
 }
 
 export function AuthGuard({
@@ -23,22 +23,20 @@ export function AuthGuard({
   redirectTo = "/login",
   adminOnly = false,
   staffOnly = false,
-  allowedRoles,
+  allowedRoles = [],
 }: AuthGuardProps) {
   const { user, loading } = useAuth()
-  const { isAdmin, isStaff, role } = useRole()
+  const { isAdmin, isStaff, hasAnyRole } = useRole()
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
     if (!loading) {
-      // Verificar autenticación básica
       if (requireAuth && !user) {
         router.push(redirectTo)
         return
       }
 
-      // Verificar role específico
       if (adminOnly && !isAdmin) {
         router.push("/")
         return
@@ -49,15 +47,14 @@ export function AuthGuard({
         return
       }
 
-      // Verificar roles permitidos
-      if (allowedRoles && role && !allowedRoles.includes(role)) {
+      if (allowedRoles.length > 0 && !hasAnyRole(allowedRoles)) {
         router.push("/")
         return
       }
 
       setIsChecking(false)
     }
-  }, [user, loading, requireAuth, redirectTo, adminOnly, staffOnly, allowedRoles, isAdmin, isStaff, role, router])
+  }, [user, loading, requireAuth, redirectTo, adminOnly, staffOnly, allowedRoles, isAdmin, isStaff, hasAnyRole, router])
 
   if (loading || isChecking) {
     return (
@@ -75,36 +72,15 @@ export function AuthGuard({
   }
 
   if (adminOnly && !isAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Acceso Denegado</h2>
-          <p className="text-muted-foreground">No tienes permisos de administrador.</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   if (staffOnly && !isStaff) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Acceso Denegado</h2>
-          <p className="text-muted-foreground">No tienes permisos de staff.</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Acceso Denegado</h2>
-          <p className="text-muted-foreground">No tienes los permisos necesarios.</p>
-        </div>
-      </div>
-    )
+  if (allowedRoles.length > 0 && !hasAnyRole(allowedRoles)) {
+    return null
   }
 
   return <>{children}</>

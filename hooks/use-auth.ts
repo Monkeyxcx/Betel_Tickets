@@ -1,7 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getCurrentUser, onAuthStateChange, signOut as authSignOut, checkAuthStatus, type User } from "@/lib/auth"
+import {
+  getCurrentUser,
+  onAuthStateChange,
+  signOut as authSignOut,
+  checkAuthStatus,
+  refreshUserData,
+  type User,
+} from "@/lib/auth"
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -51,11 +58,21 @@ export function useAuth() {
     setUser(newUser)
   }
 
+  const refreshUser = async () => {
+    if (user) {
+      const refreshedUser = await refreshUserData(user.id)
+      if (refreshedUser) {
+        setUser(refreshedUser)
+      }
+    }
+  }
+
   return {
     user,
     loading,
     signOut,
     updateUser,
+    refreshUser,
     isAuthenticated: !!user,
   }
 }

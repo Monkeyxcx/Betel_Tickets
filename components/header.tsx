@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Menu, X, User, Plus, QrCode, Settings } from "lucide-react"
+import { Menu, X, User, Plus, QrCode, Settings, RefreshCw } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useRole } from "@/hooks/use-role"
@@ -19,16 +19,22 @@ import { Badge } from "@/components/ui/badge"
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut, refreshUser } = useAuth()
   const { isAdmin, isStaff, role } = useRole()
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
   }
 
+  const handleRefreshUser = async () => {
+    console.log("Refreshing user data...")
+    const refreshedUser = await refreshUser()
+    console.log("Refreshed user:", refreshedUser)
+  }
+
   const navigation = [
     { name: "Inicio", href: "/" },
-    // { name: "Tickets", href: "/tickets" },
+    { name: "Tickets", href: "/tickets" },
     { name: "Información", href: "/#info" },
     { name: "Contacto", href: "/contacto" },
   ]
@@ -47,7 +53,7 @@ export default function Header() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="font-bold text-xl">
-            BetelTickets
+            EventoTickets
           </Link>
         </div>
 
@@ -86,9 +92,19 @@ export default function Header() {
                 <DropdownMenuItem asChild>
                   <Link href="/profile">Mi Perfil</Link>
                 </DropdownMenuItem>
-                {/* <DropdownMenuItem asChild>
-                  <Link href="/profile">Mis Tickets</Link>
-                </DropdownMenuItem> */}
+                <DropdownMenuItem asChild>
+                  <Link href="/tickets">Mis Tickets</Link>
+                </DropdownMenuItem>
+
+                {/* Debug info */}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleRefreshUser}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refrescar datos
+                </DropdownMenuItem>
+                <div className="px-2 py-1 text-xs text-muted-foreground">
+                  Role: {user.role} | ID: {user.id.slice(0, 8)}...
+                </div>
 
                 {isStaff && (
                   <>
@@ -213,6 +229,11 @@ export default function Header() {
                       </Button>
                     </>
                   )}
+
+                  <Button onClick={handleRefreshUser} variant="outline" size="sm">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refrescar datos
+                  </Button>
 
                   <Button
                     onClick={() => {

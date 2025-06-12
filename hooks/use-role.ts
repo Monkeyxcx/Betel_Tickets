@@ -1,21 +1,21 @@
 "use client"
 
-import { useAuth } from "./use-auth"
+import { useAuth } from "@/hooks/use-auth"
 
 export function useRole() {
   const { user } = useAuth()
 
-  return {
-    user,
-    isAdmin: user?.role === "admin",
-    isStaff: user?.role === "staff" || user?.role === "admin",
-    isUser: !!user,
-    role: user?.role || null,
+  const role = user?.role || "user"
+  const isAdmin = role === "admin"
+  const isStaff = role === "staff" || role === "admin" // Admin también tiene permisos de staff
+  const isUser = role === "user"
 
-    // Funciones de verificación específicas
-    canManageEvents: user?.role === "admin",
-    canManageUsers: user?.role === "admin",
-    canScanTickets: user?.role === "staff" || user?.role === "admin",
-    canViewReports: user?.role === "staff" || user?.role === "admin",
+  return {
+    role,
+    isAdmin,
+    isStaff,
+    isUser,
+    hasRole: (requiredRole: string) => role === requiredRole,
+    hasAnyRole: (roles: string[]) => roles.includes(role),
   }
 }

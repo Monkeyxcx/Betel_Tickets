@@ -25,7 +25,7 @@ export function useProtectedRoute({
         return
       }
 
-      if (adminOnly && user?.email !== "admin@example.com") {
+      if (adminOnly && user?.role !== "admin") {
         router.push("/")
         return
       }
@@ -36,6 +36,6 @@ export function useProtectedRoute({
     user,
     loading,
     isAuthenticated: !!user,
-    isAdmin: user?.email === "admin@example.com",
+    isAdmin: user?.role === "admin",
   }
 }

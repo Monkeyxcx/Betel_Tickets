@@ -27,7 +27,7 @@ export interface CreateEventData {
 // Obtener todos los eventos activos
 export async function getActiveEvents(): Promise<{ data: Event[] | null; error: string | null }> {
   try {
-    console.log("Fetching active events")
+    console.log("Fetching active events from Supabase")
     const { data, error } = await supabase
       .from("events")
       .select("*")
@@ -50,7 +50,7 @@ export async function getActiveEvents(): Promise<{ data: Event[] | null; error: 
 // Obtener eventos destacados
 export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error: string | null }> {
   try {
-    console.log("Fetching featured events")
+    console.log("Fetching featured events from Supabase")
     const { data, error } = await supabase
       .from("events")
       .select("*")
@@ -75,7 +75,7 @@ export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error
 // Obtener eventos por categoría
 export async function getEventsByCategory(category: string): Promise<{ data: Event[] | null; error: string | null }> {
   try {
-    console.log("Fetching events by category:", category)
+    console.log("Fetching events by category from Supabase:", category)
     const { data, error } = await supabase
       .from("events")
       .select("*")
@@ -99,7 +99,7 @@ export async function getEventsByCategory(category: string): Promise<{ data: Eve
 // Crear nuevo evento (solo admin)
 export async function createEvent(eventData: CreateEventData): Promise<{ data: Event | null; error: string | null }> {
   try {
-    console.log("Creating new event:", eventData.name)
+    console.log("Creating new event in Supabase:", eventData.name)
     const { data, error } = await supabase
       .from("events")
       .insert([
@@ -131,7 +131,7 @@ export async function updateEvent(
   eventData: Partial<CreateEventData>,
 ): Promise<{ data: Event | null; error: string | null }> {
   try {
-    console.log("Updating event:", eventId)
+    console.log("Updating event in Supabase:", eventId)
     const { data, error } = await supabase
       .from("events")
       .update({
@@ -158,7 +158,7 @@ export async function updateEvent(
 // Eliminar evento
 export async function deleteEvent(eventId: string): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log("Deleting event:", eventId)
+    console.log("Deleting event from Supabase:", eventId)
     const { error } = await supabase.from("events").delete().eq("id", eventId)
 
     if (error) {
@@ -174,7 +174,7 @@ export async function deleteEvent(eventId: string): Promise<{ success: boolean; 
   }
 }
 
-// Obtener evento por ID - FUNCIÓN MEJORADA
+// Obtener evento por ID
 export async function getEventById(eventId: string): Promise<{ data: Event | null; error: string | null }> {
   try {
     console.log("Fetching event with ID:", eventId)

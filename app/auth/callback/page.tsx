@@ -31,6 +31,7 @@ export default function AuthCallback() {
               id: user.id,
               email: user.email,
               name: user.user_metadata?.full_name || user.user_metadata?.name || "Usuario",
+              role: "user", // Rol por defecto para nuevos usuarios
             },
           ])
 
@@ -38,11 +39,19 @@ export default function AuthCallback() {
             console.error("Error upserting user:", upsertError)
           }
 
+          // Obtener los datos completos del usuario incluyendo el rol
+          const { data: userData, error: userDataError } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .single()
+
           // Actualizar estado de autenticación
           const authUser = {
             id: user.id,
             email: user.email!,
-            name: user.user_metadata?.full_name || user.user_metadata?.name || "Usuario",
+            name: userData?.name || user.user_metadata?.full_name || user.user_metadata?.name || "Usuario",
+            role: userData?.role || "user",
           }
 
           updateUser(authUser)
