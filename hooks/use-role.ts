@@ -11,6 +11,7 @@ export function useRole() {
   const isUser = role === "user"
 
   return {
+    user,
     role,
     isAdmin,
     isStaff,

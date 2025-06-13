@@ -29,16 +29,21 @@ function StaffScannerContent() {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [scanMode, setScanMode] = useState<"manual" | "camera">("manual")
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Cargar historial al montar el componente
+  // Cargar el ticket al leer el qr
   useEffect(() => {
-    loadScanHistory()
-    // Auto-focus en el input
-    if (inputRef.current) {
-      inputRef.current.focus()
+    if (ticketCode && ticketCode.trim() && !scanning) {
+      if (ticketCode === lastScannedCode) {
+        // Si es el mismo código, no lo volvemos a procesar
+        return;
+      }
+      setLastScannedCode(ticketCode);
+      handleScan();
     }
-  }, [])
+  }, [ticketCode]);
+  
 
   const loadScanHistory = async () => {
     if (!user) return

@@ -4,7 +4,18 @@ export interface User {
   id: string
   email: string
   name: string
-  role: string
+  role: "user" | "staff" | "admin" // Cambiar a union type para mejor type safety
+}
+
+// Check if Supabase is properly configured
+const isSupabaseConfigured = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  const configured = !!(url && key && url !== "" && key !== "")
+  console.log("Supabase configured:", configured)
+
+  return configured
 }
 
 export async function signUp(
@@ -12,6 +23,22 @@ export async function signUp(
   password: string,
   name: string,
 ): Promise<{ user: User | null; error: string | null }> {
+  // Mock para desarrollo si Supabase no está configurado
+  if (!isSupabaseConfigured()) {
+    const mockUser: User = {
+      id: "mock-user-" + Date.now(),
+      email,
+      name,
+      role: "user",
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(mockUser))
+    }
+
+    return { user: mockUser, error: null }
+  }
+
   try {
     console.log("Attempting to sign up user:", email)
 
@@ -23,6 +50,7 @@ export async function signUp(
         data: {
           name,
         },
+        emailRedirectTo: undefined, // No requerir confirmación de email
       },
     })
 
@@ -34,43 +62,8 @@ export async function signUp(
     if (authData.user) {
       console.log("User signed up successfully:", authData.user.id)
 
-      // Crear usuario en nuestra tabla personalizada con rol por defecto
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .insert([
-          {
-            id: authData.user.id,
-            email: authData.user.email,
-            name: name,
-            role: "user", // Rol por defecto
-          },
-        ])
-        .select()
-        .single()
-
-      if (userError) {
-        console.error("Error creating user record:", userError)
-        // Si falla la inserción, crear usuario con datos básicos
-        const user: User = {
-          id: authData.user.id,
-          email: authData.user.email!,
-          name: name,
-          role: "user",
-        }
-
-        if (typeof window !== "undefined") {
-          localStorage.setItem("user", JSON.stringify(user))
-        }
-
-        return { user, error: null }
-      }
-
-      const user: User = {
-        id: authData.user.id,
-        email: authData.user.email!,
-        name: userData.name,
-        role: userData.role,
-      }
+      // Usar la función auxiliar para crear usuario
+      const user = await getOrCreateUserFromCustomTable(authData.user)
 
       // Guardar en localStorage
       if (typeof window !== "undefined") {
@@ -88,6 +81,29 @@ export async function signUp(
 }
 
 export async function signIn(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
+  // Mock para desarrollo si Supabase no está configurado
+  if (!isSupabaseConfigured()) {
+    console.log("Using mock authentication - Supabase not configured")
+
+    const mockUsers = [
+      { id: "admin-mock", email: "admin@example.com", name: "Administrador", role: "admin" as const },
+      { id: "staff-mock", email: "staff@example.com", name: "Personal del Evento", role: "staff" as const },
+      { id: "user-mock", email: "user@example.com", name: "Usuario de Prueba", role: "user" as const },
+    ]
+
+    const mockUser = mockUsers.find((u) => u.email === email)
+
+    if (mockUser && password === "password123") {
+      console.log("Mock login successful for:", email)
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(mockUser))
+      }
+      return { user: mockUser, error: null }
+    }
+
+    return { user: null, error: "Email o contraseña incorrectos (usa password123)" }
+  }
+
   try {
     console.log("Attempting to sign in user:", email)
 
@@ -111,67 +127,8 @@ export async function signIn(email: string, password: string): Promise<{ user: U
     if (authData.user) {
       console.log("User signed in successfully:", authData.user.id)
 
-      // Obtener datos del usuario de nuestra tabla personalizada
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", authData.user.id)
-        .single()
-
-      if (userError) {
-        console.error("Error fetching user data from users table:", userError)
-
-        // Si el usuario no existe en nuestra tabla, crearlo
-        const { data: newUserData, error: createError } = await supabase
-          .from("users")
-          .insert([
-            {
-              id: authData.user.id,
-              email: authData.user.email,
-              name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || "Usuario",
-              role: "user",
-            },
-          ])
-          .select()
-          .single()
-
-        if (createError) {
-          console.error("Error creating user record:", createError)
-          // Fallback: usar datos básicos
-          const user: User = {
-            id: authData.user.id,
-            email: authData.user.email!,
-            name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || "Usuario",
-            role: "user",
-          }
-
-          if (typeof window !== "undefined") {
-            localStorage.setItem("user", JSON.stringify(user))
-          }
-
-          return { user, error: null }
-        }
-
-        const user: User = {
-          id: authData.user.id,
-          email: authData.user.email!,
-          name: newUserData.name,
-          role: newUserData.role,
-        }
-
-        if (typeof window !== "undefined") {
-          localStorage.setItem("user", JSON.stringify(user))
-        }
-
-        return { user, error: null }
-      }
-
-      const user: User = {
-        id: authData.user.id,
-        email: authData.user.email!,
-        name: userData.name,
-        role: userData.role,
-      }
+      // Usar la función auxiliar para obtener/crear usuario
+      const user = await getOrCreateUserFromCustomTable(authData.user)
 
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(user))
@@ -188,6 +145,10 @@ export async function signIn(email: string, password: string): Promise<{ user: U
 }
 
 export async function signInWithGoogle(): Promise<{ user: User | null; error: string | null }> {
+  if (!isSupabaseConfigured()) {
+    return { user: null, error: "Google sign-in no disponible en modo desarrollo" }
+  }
+
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -211,7 +172,9 @@ export async function signInWithGoogle(): Promise<{ user: User | null; error: st
 export async function signOut(): Promise<void> {
   try {
     console.log("Signing out user")
-    await supabase.auth.signOut()
+    if (isSupabaseConfigured()) {
+      await supabase.auth.signOut()
+    }
   } catch (error) {
     console.error("Error signing out:", error)
   } finally {
@@ -235,35 +198,41 @@ export function getCurrentUser(): User | null {
   return null
 }
 
-// Función auxiliar para crear/obtener usuario de nuestra tabla personalizada
+// Función auxiliar mejorada para crear/obtener usuario de nuestra tabla personalizada
 async function getOrCreateUserFromCustomTable(authUser: any): Promise<User> {
   try {
-    // Primero intentar obtener el usuario de nuestra tabla
+    console.log("Getting or creating user from custom table for:", authUser.email)
+
+    // Primero intentar obtener el usuario de nuestra tabla usando email
     const { data: userData, error: fetchError } = await supabase
       .from("users")
       .select("*")
       .eq("email", authUser.email)
       .single()
 
-    if (!fetchError && userData) {
-      // Usuario existe en nuestra tabla
+    if (fetchError && fetchError.code !== "PGRST116") {
+      console.error("Error fetching user data:", fetchError)
+      throw fetchError
+    }
+
+    // Si el usuario existe, devolverlo
+    if (userData) {
+      console.log("User found in custom table:", userData)
       return {
         id: userData.id,
         email: userData.email,
         name: userData.name,
-        role: userData.role,
+        role: userData.role || "user",
       }
     }
 
+    // Si no existe, crearlo
     console.log("User not found in custom table, creating new record")
-
-    // Si no existe, crear nuevo registro
     const { data: newUserData, error: createError } = await supabase
       .from("users")
       .insert([
         {
-          id: authUser.id,
-          email: authUser.email,
+          email: authUser.email, // Usar email como clave principal
           name: authUser.user_metadata?.name || authUser.user_metadata?.full_name || "Usuario",
           role: "user",
         },
@@ -273,14 +242,20 @@ async function getOrCreateUserFromCustomTable(authUser: any): Promise<User> {
 
     if (createError) {
       console.error("Error creating user in custom table:", createError)
-      // Log user data from users table before returning fallback
-      const { data: existingUserData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", authUser.email)
-        .single()
-      console.log("Existing user data in table:", existingUserData)
-      
+
+      // Verificar si ya existe (posible race condition)
+      const { data: existingUserData } = await supabase.from("users").select("*").eq("email", authUser.email).single()
+
+      if (existingUserData) {
+        console.log("User was created by another process:", existingUserData)
+        return {
+          id: existingUserData.id,
+          email: existingUserData.email,
+          name: existingUserData.name,
+          role: existingUserData.role || "user",
+        }
+      }
+
       // Fallback: retornar usuario con datos básicos
       return {
         id: authUser.id,
@@ -290,22 +265,16 @@ async function getOrCreateUserFromCustomTable(authUser: any): Promise<User> {
       }
     }
 
+    console.log("User created successfully:", newUserData)
     return {
       id: newUserData.id,
       email: newUserData.email,
       name: newUserData.name,
-      role: newUserData.role,
+      role: newUserData.role || "user",
     }
   } catch (error) {
     console.error("Error in getOrCreateUserFromCustomTable:", error)
-    // Log user data from users table before returning fallback
-    const { data: existingUserData } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", authUser.email)
-      .single()
-    console.log("Existing user data in table:", existingUserData)
-    
+
     // Fallback: retornar usuario con datos básicos
     return {
       id: authUser.id,
@@ -318,6 +287,16 @@ async function getOrCreateUserFromCustomTable(authUser: any): Promise<User> {
 
 // Función para manejar cambios de autenticación
 export function onAuthStateChange(callback: (user: User | null) => void) {
+  if (!isSupabaseConfigured()) {
+    return {
+      data: {
+        subscription: {
+          unsubscribe: () => console.log("Mock auth state change unsubscribed"),
+        },
+      },
+    }
+  }
+
   return supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("Auth state changed:", event, session?.user?.id)
 
@@ -332,19 +311,7 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
         callback(user)
       } catch (error) {
         console.error("Error in onAuthStateChange:", error)
-        // Fallback
-        const fallbackUser: User = {
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || "Usuario",
-          role: "user",
-        }
-
-        if (typeof window !== "undefined") {
-          localStorage.setItem("user", JSON.stringify(fallbackUser))
-        }
-
-        callback(fallbackUser)
+        callback(null)
       }
     } else {
       if (typeof window !== "undefined") {
@@ -357,6 +324,10 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
 
 // Función para verificar si el usuario actual está autenticado
 export async function checkAuthStatus(): Promise<User | null> {
+  if (!isSupabaseConfigured()) {
+    return getCurrentUser()
+  }
+
   try {
     console.log("Checking auth status")
 
@@ -387,19 +358,7 @@ export async function checkAuthStatus(): Promise<User | null> {
       return user
     } catch (error) {
       console.error("Error getting user from custom table:", error)
-      // Fallback
-      const fallbackUser: User = {
-        id: session.user.id,
-        email: session.user.email!,
-        name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || "Usuario",
-        role: "user",
-      }
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user", JSON.stringify(fallbackUser))
-      }
-
-      return fallbackUser
+      return null
     }
   } catch (error) {
     console.error("Error checking auth status:", error)
@@ -407,86 +366,61 @@ export async function checkAuthStatus(): Promise<User | null> {
   }
 }
 
-// Función para actualizar los datos del usuario desde la base de datos
-export async function refreshUserData(userId: string): Promise<User | null> {
+// Función mejorada para actualizar los datos del usuario desde la base de datos
+export async function refreshUserData(): Promise<User | null> {
+  if (!isSupabaseConfigured()) {
+    return getCurrentUser()
+  }
+
   try {
-    console.log("Refreshing user data for:", userId)
+    console.log("Refreshing user data")
 
-    // IMPORTANTE: Obtener datos de nuestra tabla personalizada, NO de auth.users
-    const { data: userData, error } = await supabase
-      .from("users") // Nuestra tabla personalizada
-      .select("*")
-      .eq("id", userId)
-      .single()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    if (error) {
-      console.error("Error refreshing user data from users table:", error)
-
-      // Si no existe en nuestra tabla, obtener de auth y crear
-      const {
-        data: { user: authUser },
-        error: authError,
-      } = await supabase.auth.getUser()
-
-      if (authError || !authUser) {
-        console.error("Error getting auth user:", authError)
-        return null
-      }
-
-      // Crear usuario en nuestra tabla
-      const { data: newUserData, error: createError } = await supabase
-        .from("users")
-        .insert([
-          {
-            id: authUser.id,
-            email: authUser.email,
-            name: authUser.user_metadata?.name || authUser.user_metadata?.full_name || "Usuario",
-            role: "user",
-          },
-        ])
-        .select()
-        .single()
-
-      if (createError) {
-        console.error("Error creating user record:", createError)
-        return null
-      }
-
-      const user: User = {
-        id: newUserData.id,
-        email: newUserData.email,
-        name: newUserData.name,
-        role: newUserData.role,
-      }
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user", JSON.stringify(user))
-      }
-
-      return user
-    }
-
-    if (!userData) {
-      console.log("No user data found for ID:", userId)
+    if (!session?.user) {
       return null
     }
 
-    const user: User = {
-      id: userData.id,
-      email: userData.email,
-      name: userData.name,
-      role: userData.role,
-    }
+    // Usar la función auxiliar para obtener datos actualizados
+    const user = await getOrCreateUserFromCustomTable(session.user)
 
-    // Actualizar localStorage
     if (typeof window !== "undefined") {
       localStorage.setItem("user", JSON.stringify(user))
     }
 
     return user
   } catch (error) {
-    console.error("Error in refreshUserData:", error)
+    console.error("Error refreshing user data:", error)
     return null
+  }
+}
+
+// Función para actualizar el role de un usuario (usando email)
+export async function updateUserRole(
+  userEmail: string,
+  newRole: "user" | "staff" | "admin",
+): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: "Funcionalidad no disponible en modo desarrollo" }
+  }
+
+  try {
+    console.log("Updating user role:", userEmail, "to", newRole)
+
+    const { error } = await supabase.from("users").update({ role: newRole }).eq("email", userEmail)
+
+    if (error) {
+      console.error("Error updating user role:", error)
+      return { success: false, error: error.message }
+    }
+
+    console.log("User role updated successfully")
+    return { success: true, error: null }
+  } catch (error) {
+    console.error("Error in updateUserRole:", error)
+    return { success: false, error: "Error al actualizar role del usuario" }
   }
 }
 
@@ -496,6 +430,11 @@ export function isAdmin(user: User | null): boolean {
 }
 
 // Función para verificar si el usuario tiene un rol específico
-export function hasRole(user: User | null, role: string): boolean {
+export function hasRole(user: User | null, role: "user" | "staff" | "admin"): boolean {
   return user?.role === role
+}
+
+// Función para verificar si el usuario es staff o admin
+export function isStaffOrAdmin(user: User | null): boolean {
+  return user?.role === "staff" || user?.role === "admin"
 }
