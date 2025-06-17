@@ -34,8 +34,8 @@ export default function Header() {
 
   const navigation = [
     { name: "Inicio", href: "/" },
-    { name: "Tickets", href: "/tickets" },
-    { name: "Información", href: "/#info" },
+    // { name: "Tickets", href: "/tickets" },
+    { name: "Información", href: "/informacion" },
     { name: "Contacto", href: "/contacto" },
   ]
 
@@ -53,7 +53,7 @@ export default function Header() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="font-bold text-xl">
-            EventoTickets
+          Betel_Tickets
           </Link>
         </div>
 

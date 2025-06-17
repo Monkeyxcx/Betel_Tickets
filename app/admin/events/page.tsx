@@ -204,6 +204,7 @@ function AdminEventsContent() {
                         <SelectItem value="deportes">Deportes</SelectItem>
                         <SelectItem value="conferencia">Conferencia</SelectItem>
                         <SelectItem value="festival">Festival</SelectItem>
+                        <SelectItem value="cristiano">Eventos Cristianos</SelectItem>
                         <SelectItem value="otro">Otro</SelectItem>
                       </SelectContent>
                     </Select>
