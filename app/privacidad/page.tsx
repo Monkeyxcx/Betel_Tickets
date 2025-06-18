@@ -7,7 +7,7 @@ export default function PrivacidadPage() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Política de Privacidad</h1>
-          <p className="text-xl text-muted-foreground">Última actualización: 15 de enero de 2024</p>
+          <p className="text-xl text-muted-foreground">Última actualización: 17 de junio de 2025</p>
         </div>
 
         <div className="space-y-8">
@@ -20,7 +20,7 @@ export default function PrivacidadPage() {
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none">
               <p>
-                En EventoTickets, respetamos su privacidad y nos comprometemos a proteger su información personal. Esta
+                En Betel_Tickets, respetamos su privacidad y nos comprometemos a proteger su información personal. Esta
                 Política de Privacidad explica cómo recopilamos, utilizamos, divulgamos y protegemos su información
                 cuando utiliza nuestros servicios.
               </p>
@@ -64,7 +64,7 @@ export default function PrivacidadPage() {
                   <strong>Información del dispositivo:</strong> Tipo de dispositivo, sistema operativo, navegador
                 </li>
                 <li>
-                  <strong>Datos de ubicación:</strong> Dirección IP, ubicación aproximada
+                  <strong>Datos de ubicación:</strong>ubicación aproximada
                 </li>
                 <li>
                   <strong>Cookies y tecnologías similares:</strong> Para mejorar la experiencia del usuario
@@ -280,13 +280,13 @@ export default function PrivacidadPage() {
               </p>
               <ul>
                 <li>
-                  <strong>Email:</strong> privacy@eventostickets.com
+                  <strong>Email:</strong> privacy@Betel_Tickets.com
                 </li>
                 <li>
-                  <strong>Teléfono:</strong> +1 (555) 123-4567
+                  <strong>Teléfono:</strong> Por confirmar
                 </li>
                 <li>
-                  <strong>Dirección:</strong> Av. Tecnología 123, Piso 15, Ciudad Empresarial, CP 12345
+                  <strong>Dirección:</strong> Por confirmar
                 </li>
               </ul>
             </CardContent>

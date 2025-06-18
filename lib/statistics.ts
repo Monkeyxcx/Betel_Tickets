@@ -10,6 +10,17 @@ export interface PlatformStats {
   system_uptime: number
 }
 
+export interface DailySalesData {
+  date: string
+  revenue: number
+  sales: number
+}
+
+export interface DailyTicketsData {
+  date: string
+  tickets: number
+}
+
 // Check if Supabase is properly configured
 const isSupabaseConfigured = () => {
   return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
@@ -17,12 +28,12 @@ const isSupabaseConfigured = () => {
 
 // Mock data for development
 const mockStats: PlatformStats = {
-  total_tickets_sold: 50000,
-  total_events: 1200,
-  total_users: 25000,
-  total_revenue: 2500000,
-  active_events: 5,
-  upcoming_events: 15,
+  total_tickets_sold: 0,
+  total_events: 0,
+  total_users: 0,
+  total_revenue: 0,
+  active_events: 0,
+  upcoming_events: 0,
   system_uptime: 99.9,
 }
 
@@ -118,6 +129,161 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
   }
 }
 
+
+// Obtener estadísticas de ventas diarias (últimos 30 días)
+export async function getDailySalesStatistics(): Promise<{
+  data: DailySalesData[] | null
+  error: string | null
+}> {
+  if (!isSupabaseConfigured()) {
+    // Generar datos mock para los últimos 30 días
+    const mockData: DailySalesData[] = []
+    const today = new Date()
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+
+      mockData.push({
+        date: date.toISOString().split("T")[0],
+        revenue: Math.floor(Math.random() * 5000) + 1000,
+        sales: Math.floor(Math.random() * 50) + 10,
+      })
+    }
+
+    return { data: mockData, error: null }
+  }
+
+  try {
+    console.log("Fetching daily sales statistics")
+
+    // Obtener órdenes de los últimos 30 días
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const { data: ordersData, error: ordersError } = await supabase
+      .from("orders")
+      .select("created_at, total_amount")
+      .eq("status", "completed")
+      .gte("created_at", thirtyDaysAgo.toISOString())
+      .order("created_at", { ascending: true })
+
+    if (ordersError) {
+      console.error("Error fetching daily sales data:", ordersError)
+      return { data: null, error: ordersError.message }
+    }
+
+    // Agrupar por día
+    const dailyStats: { [key: string]: { revenue: number; sales: number } } = {}
+
+    // Inicializar todos los días con 0
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date()
+      date.setDate(date.getDate() - i)
+      const dateKey = date.toISOString().split("T")[0]
+      dailyStats[dateKey] = { revenue: 0, sales: 0 }
+    }
+
+    // Llenar con datos reales
+    ordersData?.forEach((order) => {
+      const date = new Date(order.created_at)
+      const dateKey = date.toISOString().split("T")[0]
+
+      if (dailyStats[dateKey]) {
+        dailyStats[dateKey].sales += 1
+        dailyStats[dateKey].revenue += order.total_amount || 0
+      }
+    })
+
+    const salesStats = Object.entries(dailyStats).map(([date, stats]) => ({
+      date,
+      revenue: stats.revenue,
+      sales: stats.sales,
+    }))
+
+    console.log("Daily sales statistics fetched successfully:", salesStats)
+    return { data: salesStats, error: null }
+  } catch (error) {
+    console.error("Error in getDailySalesStatistics:", error)
+    return { data: null, error: "Error al obtener estadísticas de ventas diarias" }
+  }
+}
+
+// Obtener estadísticas de tickets vendidos por día (últimos 30 días)
+export async function getDailyTicketsStatistics(): Promise<{
+  data: DailyTicketsData[] | null
+  error: string | null
+}> {
+  if (!isSupabaseConfigured()) {
+    // Generar datos mock para los últimos 30 días
+    const mockData: DailyTicketsData[] = []
+    const today = new Date()
+
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+
+      mockData.push({
+        date: date.toISOString().split("T")[0],
+        tickets: Math.floor(Math.random() * 100) + 20,
+      })
+    }
+
+    return { data: mockData, error: null }
+  }
+
+  try {
+    console.log("Fetching daily tickets statistics")
+
+    // Obtener tickets de los últimos 30 días
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const { data: ticketsData, error: ticketsError } = await supabase
+      .from("tickets")
+      .select("created_at")
+      .gte("created_at", thirtyDaysAgo.toISOString())
+      .order("created_at", { ascending: true })
+
+    if (ticketsError) {
+      console.error("Error fetching daily tickets data:", ticketsError)
+      return { data: null, error: ticketsError.message }
+    }
+
+    // Agrupar por día
+    const dailyStats: { [key: string]: number } = {}
+
+    // Inicializar todos los días con 0
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date()
+      date.setDate(date.getDate() - i)
+      const dateKey = date.toISOString().split("T")[0]
+      dailyStats[dateKey] = 0
+    }
+
+    // Llenar con datos reales
+    ticketsData?.forEach((ticket) => {
+      const date = new Date(ticket.created_at)
+      const dateKey = date.toISOString().split("T")[0]
+
+      if (dailyStats[dateKey] !== undefined) {
+        dailyStats[dateKey] += 1
+      }
+    })
+
+    const ticketsStats = Object.entries(dailyStats).map(([date, tickets]) => ({
+      date,
+      tickets,
+    }))
+
+    console.log("Daily tickets statistics fetched successfully:", ticketsStats)
+    return { data: ticketsStats, error: null }
+  } catch (error) {
+    console.error("Error in getDailyTicketsStatistics:", error)
+    return { data: null, error: "Error al obtener estadísticas de tickets diarios" }
+  }
+}
+
 // Obtener estadísticas por categoría de eventos
 export async function getEventCategoryStats(): Promise<{
   data: Array<{ category: string; count: number }> | null
@@ -125,11 +291,11 @@ export async function getEventCategoryStats(): Promise<{
 }> {
   if (!isSupabaseConfigured()) {
     const mockCategoryStats = [
-      { category: "musica", count: 450 },
-      { category: "teatro", count: 320 },
-      { category: "deportes", count: 280 },
-      { category: "conferencia", count: 150 },
-      { category: "cristiano", count: 180 },
+      { category: "musica", count: 0 },
+      { category: "teatro", count: 0 },
+      { category: "deportes", count: 0 },
+      { category: "conferencia", count: 0 },
+      { category: "cristiano", count: 0 },
     ]
     return { data: mockCategoryStats, error: null }
   }
@@ -164,85 +330,6 @@ export async function getEventCategoryStats(): Promise<{
   }
 }
 
-// Obtener estadísticas de ventas por mes (últimos 6 meses)
-export async function getSalesStatistics(): Promise<{
-  data: Array<{ month: string; sales: number; revenue: number }> | null
-  error: string | null
-}> {
-  if (!isSupabaseConfigured()) {
-    const mockSalesStats = [
-      { month: "Enero", sales: 1200, revenue: 120000 },
-      { month: "Febrero", sales: 1500, revenue: 150000 },
-      { month: "Marzo", sales: 1800, revenue: 180000 },
-      { month: "Abril", sales: 2100, revenue: 210000 },
-      { month: "Mayo", sales: 1900, revenue: 190000 },
-      { month: "Junio", sales: 2300, revenue: 230000 },
-    ]
-    return { data: mockSalesStats, error: null }
-  }
-
-  try {
-    console.log("Fetching sales statistics")
-
-    // Obtener órdenes de los últimos 6 meses
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-    const { data: ordersData, error: ordersError } = await supabase
-      .from("orders")
-      .select("created_at, total_amount")
-      .eq("status", "completed")
-      .gte("created_at", sixMonthsAgo.toISOString())
-      .order("created_at", { ascending: true })
-
-    if (ordersError) {
-      console.error("Error fetching sales data:", ordersError)
-      return { data: null, error: ordersError.message }
-    }
-
-    // Agrupar por mes
-    const monthlyStats: { [key: string]: { sales: number; revenue: number } } = {}
-    const monthNames = [
-      "Enero",
-      "Febrero",
-      "Marzo",
-      "Abril",
-      "Mayo",
-      "Junio",
-      "Julio",
-      "Agosto",
-      "Septiembre",
-      "Octubre",
-      "Noviembre",
-      "Diciembre",
-    ]
-
-    ordersData?.forEach((order) => {
-      const date = new Date(order.created_at)
-      const monthKey = `${monthNames[date.getMonth()]} ${date.getFullYear()}`
-
-      if (!monthlyStats[monthKey]) {
-        monthlyStats[monthKey] = { sales: 0, revenue: 0 }
-      }
-
-      monthlyStats[monthKey].sales += 1
-      monthlyStats[monthKey].revenue += order.total_amount || 0
-    })
-
-    const salesStats = Object.entries(monthlyStats).map(([month, stats]) => ({
-      month,
-      sales: stats.sales,
-      revenue: stats.revenue,
-    }))
-
-    console.log("Sales statistics fetched successfully:", salesStats)
-    return { data: salesStats, error: null }
-  } catch (error) {
-    console.error("Error in getSalesStatistics:", error)
-    return { data: null, error: "Error al obtener estadísticas de ventas" }
-  }
-}
-
 // Obtener estadísticas de tickets por estado
 export async function getTicketStatusStats(): Promise<{
   data: { active: number; used: number; cancelled: number } | null
@@ -250,9 +337,9 @@ export async function getTicketStatusStats(): Promise<{
 }> {
   if (!isSupabaseConfigured()) {
     const mockTicketStats = {
-      active: 15000,
-      used: 32000,
-      cancelled: 3000,
+      active: 0,
+      used: 0,
+      cancelled: 0,
     }
     return { data: mockTicketStats, error: null }
   }
@@ -302,8 +389,17 @@ export function formatNumber(num: number): string {
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
-    currency: "USD",
+    currency: "COP",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount)
+}
+
+// Formatear fecha para mostrar
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("es-ES", {
+    month: "short",
+    day: "numeric",
+  })
 }

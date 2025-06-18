@@ -75,8 +75,8 @@ export default function ContactoPage() {
                   <Mail className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-semibold">Email</h3>
-                    <p className="text-muted-foreground">soporte@eventostickets.com</p>
-                    <p className="text-muted-foreground">ventas@eventostickets.com</p>
+                    <p className="text-muted-foreground">soporte@Betel_Tickets.com</p>
+                    <p className="text-muted-foreground">ventas@Betel_Tickets.com</p>
                   </div>
                 </div>
 
@@ -84,7 +84,7 @@ export default function ContactoPage() {
                   <Phone className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-semibold">Teléfono</h3>
-                    <p className="text-muted-foreground">+1 (555) 123-4567</p>
+                    <p className="text-muted-foreground">por confirmar</p>
                     <p className="text-sm text-muted-foreground">Lunes a Viernes: 9:00 AM - 6:00 PM</p>
                   </div>
                 </div>
@@ -94,11 +94,11 @@ export default function ContactoPage() {
                   <div>
                     <h3 className="font-semibold">Oficina Principal</h3>
                     <p className="text-muted-foreground">
-                      Av. Tecnología 123, Piso 15
+                      por confirmar
                       <br />
-                      Ciudad Empresarial, CP 12345
+                      por confirmar
                       <br />
-                      País
+                      Colombia
                     </p>
                   </div>
                 </div>
