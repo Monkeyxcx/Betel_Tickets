@@ -12,9 +12,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Edit, Trash2, Calendar, MapPin, Loader2, ImageIcon, ArrowLeft, Ticket } from "lucide-react"
+import { Plus, Edit, Trash2, Calendar, MapPin, Loader2, ArrowLeft, Ticket } from "lucide-react"
 import { getActiveEvents, createEvent, updateEvent, deleteEvent, type Event, type CreateEventData } from "@/lib/events"
 import Link from "next/link"
+import { ImageUpload } from "@/components/image-upload"
 
 function AdminEventsContent() {
   const [events, setEvents] = useState<Event[]>([])
@@ -23,6 +24,7 @@ function AdminEventsContent() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [successMessage, setSuccessMessage] = useState("")
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("create")
 
   const [formData, setFormData] = useState<CreateEventData>({
     name: "",
@@ -83,17 +85,8 @@ function AdminEventsContent() {
   }
 
   const handleEdit = (event: Event) => {
-    setEditingEvent(event)
-    setFormData({
-      name: event.name,
-      description: event.description,
-      event_date: event.event_date.slice(0, 16),
-      location: event.location,
-      image_url: event.image_url || "",
-      category: event.category || "",
-      featured: event.featured,
-    })
-    setImagePreview(event.image_url || null)
+    // Navegar a la página de edición específica
+    window.location.href = `/admin/events/${event.id}/edit`
   }
 
   const handleDelete = async (eventId: string) => {
@@ -120,6 +113,7 @@ function AdminEventsContent() {
     })
     setEditingEvent(null)
     setImagePreview(null)
+    setActiveTab("list")
   }
 
   const handleImageUrlChange = (url: string) => {
@@ -155,9 +149,9 @@ function AdminEventsContent() {
         </div>
       )}
 
-      <Tabs defaultValue="create" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="create">
+          <TabsTrigger value="create" data-value="create">
             <Plus className="h-4 w-4 mr-2" />
             {editingEvent ? "Editar Evento" : "Crear Evento"}
           </TabsTrigger>
@@ -233,25 +227,11 @@ function AdminEventsContent() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="image_url">URL de la Imagen</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="image_url"
-                        value={formData.image_url}
-                        onChange={(e) => handleImageUrlChange(e.target.value)}
-                        placeholder="https://ejemplo.com/imagen.jpg"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => window.open("https://unsplash.com", "_blank")}
-                        className="whitespace-nowrap"
-                      >
-                        <ImageIcon className="mr-2 h-4 w-4" />
-                        Buscar Imágenes
-                      </Button>
-                    </div>
+                  <ImageUpload
+                      value={formData.image_url || ''}
+                      onChange={(url) => setFormData({ ...formData, image_url: url })}
+                      onPreviewChange={setImagePreview}
+                    />
                     {imagePreview && (
                       <div className="mt-2">
                         <p className="text-sm text-muted-foreground mb-2">Vista previa:</p>
@@ -385,8 +365,10 @@ function AdminEventsContent() {
                                   <Ticket className="h-4 w-4" />
                                 </Link>
                               </Button>
-                              <Button size="sm" variant="outline" onClick={() => handleEdit(event)}>
-                                <Edit className="h-4 w-4" />
+                              <Button size="sm" variant="outline" asChild>
+                                <Link href={`/admin/events/${event.id}/edit`}>
+                                  <Edit className="h-4 w-4" />
+                                </Link>
                               </Button>
                               <Button size="sm" variant="destructive" onClick={() => handleDelete(event.id)}>
                                 <Trash2 className="h-4 w-4" />
