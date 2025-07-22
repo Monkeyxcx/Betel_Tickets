@@ -424,6 +424,40 @@ export async function updateUserRole(
   }
 }
 
+// Función para solicitar reset de contraseña
+export async function requestPasswordReset(email: string): Promise<{ error: string | null }> {
+  // Mock para desarrollo si Supabase no está configurado
+  if (!isSupabaseConfigured()) {
+    console.log("Mock password reset request for:", email)
+    return { error: null }
+  }
+
+  try {
+    console.log("Requesting password reset for:", email)
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+
+    if (error) {
+      console.error("Password reset request error:", error)
+      let errorMessage = error.message
+      if (error.message.includes("User not found")) {
+        errorMessage = "No se encontró una cuenta con este correo electrónico"
+      } else if (error.message.includes("Email rate limit exceeded")) {
+        errorMessage = "Has solicitado demasiados resets. Espera unos minutos antes de intentar de nuevo"
+      }
+      return { error: errorMessage }
+    }
+
+    console.log("Password reset email sent successfully")
+    return { error: null }
+  } catch (error) {
+    console.error("Password reset request error:", error)
+    return { error: "Error al enviar el correo de recuperación" }
+  }
+}
+
 // Función para verificar si el usuario es admin
 export function isAdmin(user: User | null): boolean {
   return user?.role === "admin"
