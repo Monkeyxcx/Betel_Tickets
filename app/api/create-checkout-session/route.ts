@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { ticketType, quantity, amount } = body
+    const { ticketType: _ticketType, quantity: _quantity, amount: _amount } = body
 
     // Aquí conectarías con Stripe para crear una sesión de pago
     // Por ejemplo:

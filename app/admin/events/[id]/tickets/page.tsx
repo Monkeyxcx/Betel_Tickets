@@ -1,11 +1,13 @@
 "use client"
 
-import type React from "react"
+"use client"
 
-import { useState, useEffect } from "react"
+import type React from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard"
 import { Button } from "@/components/ui/button"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,11 +47,7 @@ function AdminEventTicketsContent() {
     available_quantity: 100,
   })
 
-  useEffect(() => {
-    loadData()
-  }, [eventId])
-
-  const loadData = async () => {
+const loadData = useCallback(async () => {
     setLoading(true)
     try {
       // Cargar información del evento
@@ -73,7 +71,11 @@ function AdminEventTicketsContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [eventId, router])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +84,7 @@ function AdminEventTicketsContent() {
 
     try {
       if (editingTicket) {
-        const { data, error } = await updateTicketType(editingTicket.id, formData)
+        const { data: _data, error } = await updateTicketType(editingTicket.id, formData)
         if (error) {
           alert(`Error al actualizar tipo de ticket: ${error}`)
         } else {
@@ -92,7 +94,7 @@ function AdminEventTicketsContent() {
           loadData()
         }
       } else {
-        const { data, error } = await createTicketType(formData)
+        const { data: _data, error } = await createTicketType(formData)
         if (error) {
           alert(`Error al crear tipo de ticket: ${error}`)
         } else {
@@ -123,7 +125,7 @@ function AdminEventTicketsContent() {
   const handleDelete = async (ticketId: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este tipo de ticket?")) return
 
-    const { success, error } = await deleteTicketType(ticketId)
+    const { success: _success, error } = await deleteTicketType(ticketId)
     if (error) {
       alert(`Error al eliminar tipo de ticket: ${error}`)
     } else {

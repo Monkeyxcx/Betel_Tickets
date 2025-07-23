@@ -1,10 +1,21 @@
 import { supabase } from "./supabase"
+import type { User as SupabaseAuthUser } from "@supabase/supabase-js"
 
 export interface User {
   id: string
   email: string
   name: string
   role: "user" | "staff" | "admin" // Cambiar a union type para mejor type safety
+}
+
+// Helper para obtener la URL base de forma segura en cliente y servidor
+const getURL = () => {
+  let url =
+    process?.env?.NEXT_PUBLIC_SITE_URL ?? // URL de producción
+    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // URL de Vercel
+    "http://localhost:3000/"
+  url = url.includes("http") ? url : `https://${url}`
+  return url.charAt(url.length - 1) === "/" ? url : `${url}/`
 }
 
 // Check if Supabase is properly configured
@@ -153,7 +164,7 @@ export async function signInWithGoogle(): Promise<{ user: User | null; error: st
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${getURL()}auth/callback`,
       },
     })
 
@@ -199,7 +210,7 @@ export function getCurrentUser(): User | null {
 }
 
 // Función auxiliar mejorada para crear/obtener usuario de nuestra tabla personalizada
-async function getOrCreateUserFromCustomTable(authUser: any): Promise<User> {
+async function getOrCreateUserFromCustomTable(authUser: SupabaseAuthUser): Promise<User> {
   try {
     console.log("Getting or creating user from custom table for:", authUser.email)
 
@@ -232,7 +243,7 @@ async function getOrCreateUserFromCustomTable(authUser: any): Promise<User> {
       .from("users")
       .insert([
         {
-          email: authUser.email, // Usar email como clave principal
+          email: authUser.email,
           name: authUser.user_metadata?.name || authUser.user_metadata?.full_name || "Usuario",
           role: "user",
         },
@@ -436,7 +447,7 @@ export async function requestPasswordReset(email: string): Promise<{ error: stri
     console.log("Requesting password reset for:", email)
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${getURL()}reset-password`,
     })
 
     if (error) {

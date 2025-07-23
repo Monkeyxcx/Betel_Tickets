@@ -34,7 +34,6 @@ export async function uploadEventImage(file: File): Promise<{ data: UploadResult
     // Generar nombre único
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 15)
-    const extension = file.name.split(".").pop()
     const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, "")
     const uniqueFilename = `events/${timestamp}-${randomString}-${cleanName}`
 

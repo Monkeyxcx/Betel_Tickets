@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
     // Generar nombre único para el archivo
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 15)
-    const extension = file.name.split(".").pop()
     const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, "")
     const uniqueFilename = `events/${timestamp}-${randomString}-${cleanName}`
 

@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { AuthGuard } from "@/components/auth-guard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,11 +37,7 @@ function EditEventContent() {
     featured: false,
   })
 
-  useEffect(() => {
-    loadEvent()
-  }, [eventId])
-
-  const loadEvent = async () => {
+  const loadEvent = useCallback(async () => {
     setLoading(true)
     const { data, error } = await getEventById(eventId)
     if (data) {
@@ -59,7 +56,11 @@ function EditEventContent() {
       console.error("Error loading event:", error)
     }
     setLoading(false)
-  }
+  }, [eventId])
+
+  useEffect(() => {
+    loadEvent()
+  }, [loadEvent])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,7 +68,7 @@ function EditEventContent() {
     setSuccessMessage("")
 
     try {
-      const { data, error } = await updateEvent(eventId, formData)
+      const { data: _data, error } = await updateEvent(eventId, formData)
       if (error) {
         alert(`Error al actualizar evento: ${error}`)
       } else {
@@ -216,10 +217,11 @@ function EditEventContent() {
                   <div className="mt-2">
                     <p className="text-sm text-muted-foreground mb-2">Vista previa:</p>
                     <div className="relative w-full h-40 bg-gray-100 rounded-md overflow-hidden">
-                      <img
+                      <Image
                         src={imagePreview || "/placeholder.svg"}
                         alt="Vista previa"
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                         onError={() => setImagePreview(null)}
                       />
                     </div>
