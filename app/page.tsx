@@ -87,8 +87,7 @@ export default function Home() {
           <div className="relative container h-full flex items-center">
             <div className="max-w-2xl text-white">
               <h1 className="text-5xl md:text-6xl font-bold mb-4">{heroEvent.name}</h1>
-              <p className="text-xl md:text-2xl mb-6 text-gray-200">{heroEvent.description}</p>
-
+           
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 <div className="flex items-center gap-2 text-lg">
                   <CalendarDays className="h-6 w-6" />
