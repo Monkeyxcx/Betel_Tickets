@@ -126,7 +126,7 @@ export default function Home() {
                   asChild
                   variant="outline"
                   size="lg"
-                  className="border-white text-white hover:bg-white/10 text-lg px-8"
+                  className="dark border-white text-white hover:bg-white/10 text-lg px-8"
                 >
                   <Link href={`/events/${heroEvent.id}`}>Más Información</Link>
                 </Button>

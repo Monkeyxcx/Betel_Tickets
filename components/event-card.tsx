@@ -32,11 +32,11 @@ export function EventCard({ event, featured = false }: EventCardProps) {
 
   return (
     <Card
-      className={`group overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl ${featured ? "border-2 border-yellow-400" : ""}`}
+      className={`group overflow-hidden transition-all duration-300 hover:scale-90 hover:shadow-xl ${featured ? "border-2 border-yellow-400" : ""}`}
     >
       <div className="relative">
         {/* Imagen del evento */}
-        <div className="aspect-video overflow-hidden">
+        <div className="aspect-video overflow-hidden relative">
           <img
             src={
               imageError || !event.image_url
@@ -44,7 +44,7 @@ export function EventCard({ event, featured = false }: EventCardProps) {
                 : event.image_url
             }
             alt={event.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+            className="w-full h-full object-cover transition-all duration-300 group-hover:scale-110 group-hover:brightness-30"
             onError={() => setImageError(true)}
           />
         </div>
@@ -61,7 +61,6 @@ export function EventCard({ event, featured = false }: EventCardProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="absolute bottom-4 left-4 right-4 text-white">
             <h3 className="font-bold text-lg mb-2 line-clamp-2">{event.name}</h3>
-            <p className="text-sm text-gray-200 mb-3 line-clamp-2">{event.description}</p>
 
             <div className="flex flex-col gap-1 text-xs text-gray-300 mb-3">
               <div className="flex items-center gap-1">
@@ -79,18 +78,18 @@ export function EventCard({ event, featured = false }: EventCardProps) {
             </div>
 
             <Button asChild size="sm" className="w-full bg-purple-600 hover:bg-purple-700">
-              <Link href={`/events/${event.id}`}>Ver Detalles</Link>
+            <Link href={`/tickets?event=${event.id}`}>Comprar Tickets</Link>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Información básica visible */}
-      <CardContent className="p-4">
+      <CardContent className="p-2">
         <h3 className="font-semibold text-lg mb-2 line-clamp-2">{event.name}</h3>
         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
           <div className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
+            <Calendar className="h-10 w-4" />
             <span>{formatDate(event.event_date)}</span>
           </div>
           <div className="flex items-center gap-1">
@@ -99,7 +98,7 @@ export function EventCard({ event, featured = false }: EventCardProps) {
           </div>
         </div>
         <Button asChild className="w-full" variant="outline">
-          <Link href={`/events/${event.id}`}>Comprar Tickets</Link>
+          <Link href={`/events/${event.id}`}>Ver Detalles</Link>
         </Button>
       </CardContent>
     </Card>

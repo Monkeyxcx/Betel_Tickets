@@ -112,22 +112,35 @@ export default function EventDetailsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-pink-500 to-purple-600 text-white">
-        <div className="container px-4 md:px-6">
+      <section
+        className="w-full py-12 md:py-24 lg:py-32 relative text-white"
+        style={{
+          backgroundImage: `url(${event.image_url || "/placeholder.svg"})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-pink-500/70 to-purple-600/70"></div>
+        <div className="container px-4 md:px-6 relative z-10">
           <div className="flex flex-col items-center space-y-4 text-center">
             <div className="space-y-2">
               <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">{event.name}</h1>
-              <p className="mx-auto max-w-[700px] text-lg md:text-xl">{event.description}</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button asChild size="lg" className="bg-white text-purple-600 hover:bg-gray-100">
                 <Link href={`/tickets?event=${eventId}`}>Comprar Tickets</Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="border-white text-white hover:bg-white/10">
-                <Link href="#info">Más Información</Link>
-              </Button>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Descripción */}
+      <section className="w-full py-12 bg-white mt-12">
+        <div className="container px-4 md:px-6">
+          <p className="mx-auto max-w-[700px] text-lg md:text-xl text-gray-600 text-center">
+            {event.description}
+          </p>
         </div>
       </section>
 
@@ -189,9 +202,8 @@ export default function EventDetailsPage() {
               {ticketTypes.map((ticketType, index) => (
                 <div
                   key={ticketType.id}
-                  className={`flex flex-col p-6 bg-white shadow-lg rounded-lg dark:bg-gray-800 ${
-                    index === 1 ? "border-2 border-purple-600" : ""
-                  }`}
+                  className={`flex flex-col p-6 bg-white shadow-lg rounded-lg dark:bg-gray-800 ${index === 1 ? "border-2 border-purple-600" : ""
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -223,21 +235,6 @@ export default function EventDetailsPage() {
           )}
         </div>
       </section>
-
-      {/* Event Image Section */}
-      {event.image_url && (
-        <section className="w-full py-12">
-          <div className="container px-4 md:px-6">
-            <div className="max-w-4xl mx-auto">
-              <img
-                src={event.image_url || "/placeholder.svg"}
-                alt={event.name}
-                className="w-full h-96 object-cover rounded-lg shadow-lg"
-              />
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   )
 }

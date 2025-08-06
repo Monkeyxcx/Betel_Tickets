@@ -40,7 +40,7 @@ export function EventCarousel({ title, events, featured = false }: EventCarousel
   if (events.length === 0) return null
 
   return (
-    <div className="relative group px-4 py-6 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className="relative group px-4 py-6 bg-gradient-to-r from-gray-100 to-white dark:from-gray-900 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{title}</h2>
         <div className="flex gap-1">
@@ -67,12 +67,12 @@ export function EventCarousel({ title, events, featured = false }: EventCarousel
 
       <div
         ref={carouselRef}
-        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth"
+        className="flex gap-8 overflow-x-auto scrollbar-hide scroll-smooth"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         onScroll={(e) => setScrollPosition(e.currentTarget.scrollLeft)}
       >
         {events.map((event) => (
-          <div key={event.id} className="flex-none w-80">
+          <div key={event.id} className="flex-none w-75 ">
             <EventCard event={event} featured={featured} />
           </div>
         ))}
