@@ -15,39 +15,27 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar estado de autenticación al cargar
-    const initAuth = async () => {
-      try {
-        // Primero verificar localStorage
-        const localUser = getCurrentUser()
-        if (localUser) {
-          setUser(localUser)
-        }
+    // 1. Carga optimista desde localStorage para una carga inicial rápida.
+    setUser(getCurrentUser());
+    setLoading(false); // Permite que la UI se renderice inmediatamente.
 
-        // Luego verificar con Supabase
-        const authUser = await checkAuthStatus()
-        setUser(authUser)
-      } catch (error) {
-        console.error("Error initializing auth:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    initAuth()
-
-    // Escuchar cambios de autenticación
+    // 2. onAuthStateChange es la fuente de verdad.
+    // Se ejecutará en la carga inicial y en cualquier evento de autenticación,
+    // corrigiendo el estado optimista si estaba desactualizado.
     const {
       data: { subscription },
     } = onAuthStateChange((user) => {
-      setUser(user)
-      setLoading(false)
-    })
+      setUser(user);
+    });
+
+    // 3. Se llama a checkAuthStatus para verificar proactivamente la sesión
+    // en la carga, lo que puede ayudar a refrescar un token expirado.
+    checkAuthStatus();
 
     return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const signOut = async () => {
     await authSignOut()

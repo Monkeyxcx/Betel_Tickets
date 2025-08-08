@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Image from "next/image"
 import { AuthGuard } from "@/components/auth-guard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,9 +11,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Loader2, Save, ImageIcon } from "lucide-react"
+import { ArrowLeft, Loader2, Save } from "lucide-react"
 import { getEventById, updateEvent, type Event, type CreateEventData } from "@/lib/events"
 import Link from "next/link"
+import { ImageUpload } from "@/components/image-upload"
 
 function EditEventContent() {
   const params = useParams()
@@ -25,7 +25,6 @@ function EditEventContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const [formData, setFormData] = useState<CreateEventData>({
     name: "",
@@ -51,7 +50,6 @@ function EditEventContent() {
         category: data.category || "",
         featured: data.featured,
       })
-      setImagePreview(data.image_url || null)
     } else if (error) {
       console.error("Error loading event:", error)
     }
@@ -82,11 +80,6 @@ function EditEventContent() {
     } finally {
       setSaving(false)
     }
-  }
-
-  const handleImageUrlChange = (url: string) => {
-    setFormData({ ...formData, image_url: url })
-    setImagePreview(url)
   }
 
   if (loading) {
@@ -194,39 +187,10 @@ function EditEventContent() {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="image_url">URL de la Imagen</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="image_url"
-                    value={formData.image_url}
-                    onChange={(e) => handleImageUrlChange(e.target.value)}
-                    placeholder="https://ejemplo.com/imagen.jpg"
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => window.open("https://unsplash.com", "_blank")}
-                    className="whitespace-nowrap"
-                  >
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    Buscar Imágenes
-                  </Button>
-                </div>
-                {imagePreview && (
-                  <div className="mt-2">
-                    <p className="text-sm text-muted-foreground mb-2">Vista previa:</p>
-                    <div className="relative w-full h-40 bg-gray-100 rounded-md overflow-hidden">
-                      <Image
-                        src={imagePreview || "/placeholder.svg"}
-                        alt="Vista previa"
-                        fill
-                        className="object-cover"
-                        onError={() => setImagePreview(null)}
-                      />
-                    </div>
-                  </div>
-                )}
+                <ImageUpload
+                  value={formData.image_url || ""}
+                  onChange={(url) => setFormData({ ...formData, image_url: url })}
+                />
               </div>
 
               <div className="space-y-2 md:col-span-2">

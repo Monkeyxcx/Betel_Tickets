@@ -20,23 +20,27 @@ export default function Home() {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        // Cargar eventos destacados
-        const { data: featured } = await getFeaturedEvents()
-        if (featured) setFeaturedEvents(featured)
+        // Cargar todos los eventos en paralelo para mejorar el rendimiento
+        const [
+          { data: featured },
+          { data: all },
+          { data: music },
+          { data: theater },
+          { data: sports },
+        ] = await Promise.all([
+          getFeaturedEvents(),
+          getActiveEvents(),
+          getEventsByCategory("musica"),
+          getEventsByCategory("teatro"),
+          getEventsByCategory("deportes"),
+        ]);
 
-        // Cargar todos los eventos
-        const { data: all } = await getActiveEvents()
-        if (all) setAllEvents(all)
+        if (featured) setFeaturedEvents(featured);
+        if (all) setAllEvents(all);
+        if (music) setMusicEvents(music);
+        if (theater) setTheaterEvents(theater);
+        if (sports) setSportsEvents(sports);
 
-        // Cargar eventos por categoría
-        const { data: music } = await getEventsByCategory("musica")
-        if (music) setMusicEvents(music)
-
-        const { data: theater } = await getEventsByCategory("teatro")
-        if (theater) setTheaterEvents(theater)
-
-        const { data: sports } = await getEventsByCategory("deportes")
-        if (sports) setSportsEvents(sports)
       } catch (error) {
         console.error("Error loading events:", error)
       } finally {
