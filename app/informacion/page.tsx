@@ -149,12 +149,12 @@ export default function InformacionPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
-                Soporte 24/7
+                Soporte
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Nuestro equipo de soporte está disponible las 24 horas del día, los 7 días de la semana para ayudarte
+                Nuestro equipo de soporte está disponible para ayudarte
                 con cualquier consulta o problema. Contáctanos a través de nuestros canales oficiales y recibirás una
                 respuesta rápida y profesional.
               </p>

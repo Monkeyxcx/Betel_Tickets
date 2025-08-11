@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollText, Shield, AlertTriangle, Scale } from "lucide-react"
+import Link from "next/link"
 
 export default function TerminosPage() {
   return (
@@ -20,12 +21,12 @@ export default function TerminosPage() {
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none">
               <p>
-                Al acceder y utilizar EventoTickets ("la Plataforma"), usted acepta estar sujeto a estos Términos y
+                Al acceder y utilizar Betel_Tickets ("la Plataforma"), usted acepta estar sujeto a estos Términos y
                 Condiciones de Uso ("Términos"). Si no está de acuerdo con alguna parte de estos términos, no debe
                 utilizar nuestros servicios.
               </p>
               <p>
-                Estos términos constituyen un acuerdo legal vinculante entre usted y EventoTickets. Nos reservamos el
+                Estos términos constituyen un acuerdo legal vinculante entre usted y Betel_Tickets. Nos reservamos el
                 derecho de modificar estos términos en cualquier momento, y dichas modificaciones entrarán en vigor
                 inmediatamente después de su publicación en la Plataforma.
               </p>
@@ -113,13 +114,13 @@ export default function TerminosPage() {
 
               <h4>4.2 Eventos de Terceros</h4>
               <p>
-                EventoTickets actúa como intermediario entre organizadores de eventos y compradores. No somos
+                Betel_Tickets actúa como intermediario entre organizadores de eventos y compradores. No somos
                 responsables por la calidad, cancelación o modificación de eventos organizados por terceros.
               </p>
 
               <h4>4.3 Limitación de Daños</h4>
               <p>
-                En ningún caso EventoTickets será responsable por daños indirectos, incidentales, especiales o
+                En ningún caso Betel_Tickets será responsable por daños indirectos, incidentales, especiales o
                 consecuentes que resulten del uso o la imposibilidad de usar nuestros servicios.
               </p>
             </CardContent>
@@ -132,7 +133,7 @@ export default function TerminosPage() {
             <CardContent className="prose prose-sm max-w-none">
               <p>
                 Todo el contenido de la plataforma, incluyendo pero no limitado a texto, gráficos, logos, iconos,
-                imágenes, clips de audio, descargas digitales y software, es propiedad de EventoTickets o sus
+                imágenes, clips de audio, descargas digitales y software, es propiedad de Betel_Tickets o sus
                 proveedores de contenido y está protegido por las leyes de derechos de autor.
               </p>
             </CardContent>
@@ -157,8 +158,7 @@ export default function TerminosPage() {
             <CardContent className="prose prose-sm max-w-none">
               <p>
                 Cualquier disputa que surja de o esté relacionada con estos términos será resuelta mediante arbitraje
-                vinculante de acuerdo con las reglas de arbitraje comercial. El arbitraje se llevará a cabo en
-                [Jurisdicción].
+                vinculante de acuerdo con las reglas de arbitraje comercial.
               </p>
             </CardContent>
           </Card>
@@ -170,9 +170,14 @@ export default function TerminosPage() {
             <CardContent className="prose prose-sm max-w-none">
               <p>Si tiene preguntas sobre estos Términos y Condiciones, puede contactarnos en:</p>
               <ul>
-                <li>Email: legal@eventostickets.com</li>
-                <li>Teléfono: +1 (555) 123-4567</li>
-                <li>Dirección: Av. Tecnología 123, Piso 15, Ciudad Empresarial</li>
+                <li>
+                  Email:{" "}
+                  <Link href="/contacto" className="hover:underline">
+                    legal@Betel_Tickets.com
+                  </Link>
+                </li>
+                <li>Teléfono: +57 300 346 95 17</li>
+                {/* <li>Dirección: Av. Tecnología 123, Piso 15, Ciudad Empresarial</li> */}
               </ul>
             </CardContent>
           </Card>
@@ -181,3 +186,4 @@ export default function TerminosPage() {
     </div>
   )
 }
+

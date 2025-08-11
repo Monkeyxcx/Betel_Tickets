@@ -21,28 +21,43 @@ export default function ContactoPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
 
-    // Simular envío del formulario
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    setSubmitted(true)
-    setIsSubmitting(false)
-
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setSubmitted(false)
-      setFormData({
-        nombre: "",
-        email: "",
-        asunto: "",
-        categoria: "",
-        mensaje: "",
+    try {
+      const response = await fetch("/api/send-support-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       })
-    }, 3000)
+
+      if (!response.ok) {
+        throw new Error("Error al enviar el mensaje. Por favor, inténtalo de nuevo.")
+      }
+
+      setSubmitted(true)
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setSubmitted(false)
+        setFormData({
+          nombre: "",
+          email: "",
+          asunto: "",
+          categoria: "",
+          mensaje: "",
+        })
+      }, 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -76,7 +91,7 @@ export default function ContactoPage() {
                   <div>
                     <h3 className="font-semibold">Email</h3>
                     <p className="text-muted-foreground">soporte@Betel_Tickets.com</p>
-                    <p className="text-muted-foreground">ventas@Betel_Tickets.com</p>
+                    {/* <p className="text-muted-foreground">ventas@Betel_Tickets.com</p> */}
                   </div>
                 </div>
 
@@ -84,12 +99,12 @@ export default function ContactoPage() {
                   <Phone className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-semibold">Teléfono</h3>
-                    <p className="text-muted-foreground">por confirmar</p>
+                    <p className="text-muted-foreground">(+57) 300 346 95 17</p>
                     <p className="text-sm text-muted-foreground">Lunes a Viernes: 9:00 AM - 6:00 PM</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
+                {/* <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-semibold">Oficina Principal</h3>
@@ -101,7 +116,7 @@ export default function ContactoPage() {
                       Colombia
                     </p>
                   </div>
-                </div>
+                </div> */}
 
                 <div className="flex items-start gap-3">
                   <Clock className="h-5 w-5 text-primary mt-1" />
@@ -109,9 +124,9 @@ export default function ContactoPage() {
                     <h3 className="font-semibold">Horarios de Atención</h3>
                     <div className="text-muted-foreground space-y-1">
                       <p>Lunes - Viernes: 9:00 AM - 6:00 PM</p>
-                      <p>Sábados: 10:00 AM - 2:00 PM</p>
+                      <p>Sábados: 10:00 AM - 12:00 PM</p>
                       <p>Domingos: Cerrado</p>
-                      <p className="text-sm font-medium text-primary">Soporte de emergencia 24/7 disponible</p>
+                      {/* <p className="text-sm font-medium text-primary">Soporte de emergencia 24/7 disponible</p> */}
                     </div>
                   </div>
                 </div>
@@ -170,6 +185,12 @@ export default function ContactoPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                      <strong className="font-bold">Error:</strong>
+                      <span className="block sm:inline"> {error}</span>
+                    </div>
+                  )}
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="nombre">Nombre completo *</Label>
