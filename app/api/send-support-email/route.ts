@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const toEmail = "brahiangomez13@gmail.com";
-
 export async function POST(request: Request) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const toEmail = process.env.SUPPORT_EMAIL;
+
+  if (!resendApiKey || !toEmail) {
+    console.error("RESEND_API_KEY or SUPPORT_EMAIL is not set");
+    return NextResponse.json(
+      { error: "La configuración del servidor de correo está incompleta." },
+      { status: 500 }
+    );
+  }
+
+  const resend = new Resend(resendApiKey);
+
   try {
     const body = await request.json();
     const { nombre, email, asunto, categoria, mensaje } = body;
