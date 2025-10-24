@@ -100,15 +100,9 @@ export default function InformacionPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
--                Betel_Tickets es una plataforma moderna y segura diseñada para facilitar la compra, venta y gestión de
--                tickets para todo tipo de eventos. Desde conciertos y festivales hasta conferencias y eventos
--                deportivos, conectamos a organizadores con su audiencia de manera eficiente y confiable.
--                Betel_Tickets es una plataforma cristiana dedicada a conectar la comunidad de fe mediante eventos
--                significativos. Nos especializamos en conferencias cristianas, conciertos gospel, retiros espirituales
--                y encuentros de edificación. Aunque el enfoque es cristiano, todos son bienvenidos a participar.
-+                Betel_Tickets es una plataforma cristiana dedicada a conectar la comunidad de fe mediante eventos
-+                significativos. Nos especializamos en conferencias cristianas, conciertos gospel, retiros espirituales
-+                y encuentros de edificación. Aunque nuestro enfoque es cristiano, todos son bienvenidos a participar.
+Betel_Tickets es una plataforma cristiana dedicada a conectar la comunidad de fe mediante eventos
+significativos. Nos especializamos en conferencias cristianas, conciertos gospel, retiros espirituales
+y encuentros de edificación. Aunque el enfoque es cristiano, todos son bienvenidos a participar.
               </p>
             </CardContent>
           </Card>
@@ -274,18 +268,15 @@ export default function InformacionPage() {
                 <Calendar className="h-5 w-5 text-primary" />
                 Tipos de Eventos que Ofrecemos
               </CardTitle>
--             <CardDescription>Amplia variedad de categorías para todos los gustos</CardDescription>
--             <CardDescription>Enfoque en eventos cristianos, abiertos a toda la comunidad</CardDescription>
+              <CardDescription>Amplia variedad de categorías para todos los gustos</CardDescription>
 +             <CardDescription>Enfoque en eventos cristianos, abiertos a toda la comunidad</CardDescription>
             </CardHeader>
             <CardContent>
             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
                 <div className="text-center p-4 border rounded-lg">
--                  <h3 className="font-semibold mb-2">🎵 Música</h3>
-+                  <h3 className="font-semibold mb-2">🎵 Música Gospel</h3>
+                  <h3 className="font-semibold mb-2">🎵 Música</h3>
                   <p className="text-sm text-muted-foreground">
--                    Conciertos, festivales, recitales y eventos musicales de todos los géneros
-+                    Conciertos de música cristiana, festivales gospel y eventos de adoración
+                    Conciertos, festivales, recitales y eventos musicales de todos los géneros
                   </p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
@@ -301,11 +292,9 @@ export default function InformacionPage() {
                   </p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
--                  <h3 className="font-semibold mb-2">🎓 Conferencias</h3>
-+                  <h3 className="font-semibold mb-2">🎓 Conferencias Cristianas</h3>
+                  <h3 className="font-semibold mb-2">🎓 Conferencias</h3>
                   <p className="text-sm text-muted-foreground">
--                    Seminarios, workshops, conferencias profesionales y eventos educativos
-+                    Seminarios bíblicos, talleres de discipulado y conferencias de fe
+                    Seminarios, workshops, conferencias profesionales y eventos educativos
                   </p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
