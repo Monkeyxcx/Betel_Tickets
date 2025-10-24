@@ -13,9 +13,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Cliente principal de Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: false, // Cambiado a false para evitar que las sesiones permanezcan abiertas
+    autoRefreshToken: false, // Desactivado para evitar renovación automática
     detectSessionInUrl: true,
+    storageKey: 'supabase-temp-session', // Clave personalizada para almacenamiento temporal
   },
 })
 
