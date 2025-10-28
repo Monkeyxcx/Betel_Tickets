@@ -20,7 +20,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
   const { user, loading, signOut, refreshUser } = useAuth()
-  const { isAdmin, isStaff, role } = useRole()
+  const { isAdmin, isStaff, isCoordinator, role } = useRole()
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -42,6 +42,10 @@ export default function Header() {
   // Agregar enlaces específicos por rol
   if (isStaff) {
     navigation.push({ name: "Escáner", href: "/staff/scanner" })
+  }
+
+  if (isCoordinator) {
+    navigation.push({ name: "Coordinación", href: "/coordinator" })
   }
 
   if (isAdmin) {
@@ -107,7 +111,7 @@ export default function Header() {
                 </div>
 
                 {isStaff && (
-                  <>
+                  <> 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/staff/scanner" className="flex items-center">
@@ -115,29 +119,35 @@ export default function Header() {
                         Escáner de Tickets
                       </Link>
                     </DropdownMenuItem>
-                  </>
-                )}
-
-                {isAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin">Panel de Admin</Link>
-                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/admin/events" className="flex items-center">
                         <Plus className="mr-2 h-4 w-4" />
                         Gestionar Eventos
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin/staff" className="flex items-center">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Gestionar Staff
-                      </Link>
-                    </DropdownMenuItem>
                   </>
                 )}
+
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin">Panel de Admin</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/events" className="flex items-center">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Gestionar Eventos
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/staff" className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Gestionar Staff
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut}>Cerrar Sesión</DropdownMenuItem>
@@ -206,6 +216,22 @@ export default function Header() {
                         Escáner de Tickets
                       </Link>
                     </Button>
+                  )}
+
+                  {isCoordinator && (
+                    <>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/coordinator" onClick={() => setIsMenuOpen(false)}>
+                          Panel de Coordinación
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/coordinator/events" onClick={() => setIsMenuOpen(false)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Gestionar Eventos
+                        </Link>
+                      </Button>
+                    </>
                   )}
 
                   {isAdmin && (

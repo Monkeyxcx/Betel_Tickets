@@ -5,7 +5,7 @@ export interface User {
   id: string
   email: string
   name: string
-  role: "user" | "staff" | "admin" // Cambiar a union type para mejor type safety
+  role: "user" | "staff" | "coordinator" | "admin"
 }
 
 // Helper para obtener la URL base de forma segura en cliente y servidor
@@ -475,11 +475,21 @@ export function isAdmin(user: User | null): boolean {
 }
 
 // Función para verificar si el usuario tiene un rol específico
-export function hasRole(user: User | null, role: "user" | "staff" | "admin"): boolean {
+export function hasRole(user: User | null, role: "user" | "staff" | "coordinator" | "admin"): boolean {
   return user?.role === role
 }
 
 // Función para verificar si el usuario es staff o admin
 export function isStaffOrAdmin(user: User | null): boolean {
   return user?.role === "staff" || user?.role === "admin"
+}
+
+// Función para verificar si el usuario es coordinator o admin
+export function isCoordinatorOrAdmin(user: User | null): boolean {
+  return user?.role === "coordinator" || user?.role === "admin"
+}
+
+// Función para verificar si el usuario es staff, coordinator o admin
+export function isStaffCoordinatorOrAdmin(user: User | null): boolean {
+  return user?.role === "staff" || user?.role === "coordinator" || user?.role === "admin"
 }

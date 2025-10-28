@@ -403,3 +403,271 @@ export function formatDate(dateString: string): string {
     day: "numeric",
   })
 }
+
+// Coordinator-specific statistics functions
+export async function getCoordinatorPlatformStatistics(creatorId: string) {
+  // Obtener eventos del coordinador
+  const { data: events, error: eventsError } = await supabase
+    .from("events")
+    .select("id")
+    .eq("creator_id", creatorId)
+
+  if (eventsError) {
+    console.error("Error fetching coordinator events:", eventsError)
+    return { totalEvents: 0, totalTickets: 0, totalRevenue: 0, soldTickets: 0, availableTickets: 0 }
+  }
+
+  const eventIds = (events || []).map((e) => e.id)
+
+  // Obtener tipos de tickets de esos eventos
+  let totalTickets = 0
+  let availableTickets = 0
+
+  if (eventIds.length > 0) {
+    const { data: types, error: typesError } = await supabase
+      .from("ticket_types")
+      .select("event_id, max_quantity, available_quantity")
+      .in("event_id", eventIds)
+
+    if (!typesError && types) {
+      totalTickets = types.reduce((sum, t) => sum + (t.max_quantity || 0), 0)
+      availableTickets = types.reduce((sum, t) => sum + (t.available_quantity || 0), 0)
+    } else if (typesError) {
+      console.error("Error fetching ticket types:", typesError)
+    }
+  }
+
+  const soldTickets = Math.max(totalTickets - availableTickets, 0)
+
+  // Ingresos: sumar órdenes completadas de esos eventos
+  let totalRevenue = 0
+  if (eventIds.length > 0) {
+    const { data: orders, error: ordersError } = await supabase
+      .from("orders")
+      .select("total_amount, event_id, status")
+      .in("event_id", eventIds)
+      .eq("status", "completed")
+
+    if (!ordersError && orders) {
+      totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+    } else if (ordersError) {
+      console.error("Error fetching orders for revenue:", ordersError)
+    }
+  }
+
+  return {
+    totalEvents: events?.length || 0,
+    totalTickets,
+    totalRevenue,
+    soldTickets,
+    availableTickets,
+  }
+}
+
+export async function getCoordinatorDailySalesStatistics(creatorId: string, days: number = 30) {
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const { data: events, error: eventsError } = await supabase
+    .from("events")
+    .select("id")
+    .eq("creator_id", creatorId)
+
+  if (eventsError) {
+    console.error("Error fetching coordinator events for sales:", eventsError)
+    return []
+  }
+
+  const eventIds = (events || []).map((e) => e.id)
+
+  const dailyStats = new Map<string, { date: string; sales: number; revenue: number }>()
+  for (let i = 0; i < days; i++) {
+    const date = new Date()
+    date.setDate(date.getDate() - i)
+    const dateStr = date.toISOString().split("T")[0]
+    dailyStats.set(dateStr, { date: dateStr, sales: 0, revenue: 0 })
+  }
+
+  if (eventIds.length > 0) {
+    const { data: orders, error: ordersError } = await supabase
+      .from("orders")
+      .select("created_at, total_amount, event_id, status")
+      .in("event_id", eventIds)
+      .eq("status", "completed")
+      .gte("created_at", startDate.toISOString())
+      .order("created_at", { ascending: true })
+
+    if (!ordersError && orders) {
+      orders.forEach((order) => {
+        const dateStr = new Date(order.created_at).toISOString().split("T")[0]
+        const stat = dailyStats.get(dateStr)
+        if (stat) {
+          stat.sales += 1
+          stat.revenue += order.total_amount || 0
+        }
+      })
+    } else if (ordersError) {
+      console.error("Error fetching coordinator orders:", ordersError)
+    }
+  }
+
+  return Array.from(dailyStats.values()).reverse()
+}
+
+export async function getCoordinatorDailyTicketsStatistics(creatorId: string, days: number = 30) {
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const { data: events, error: eventsError } = await supabase
+    .from("events")
+    .select("id")
+    .eq("creator_id", creatorId)
+
+  if (eventsError) {
+    console.error("Error fetching events for ticket activity:", eventsError)
+    return []
+  }
+
+  const eventIds = Array.isArray(events) ? events.map((e) => e.id) : []
+
+  // Inicializar mapa de días
+  const dailyStats = new Map<string, { date: string; created: number; sold: number; scanned: number }>()
+  for (let i = 0; i < days; i++) {
+    const date = new Date()
+    date.setDate(date.getDate() - i)
+    const dateStr = date.toISOString().split("T")[0]
+    dailyStats.set(dateStr, { date: dateStr, created: 0, sold: 0, scanned: 0 })
+  }
+
+  if (eventIds.length > 0) {
+    // Obtener tipos de tickets para mapear a tickets
+    const { data: types, error: typesError } = await supabase
+      .from("ticket_types")
+      .select("id, event_id")
+      .in("event_id", eventIds)
+
+    if (!typesError && Array.isArray(types) && types.length > 0) {
+      const typeIds = types.map((t) => t.id)
+      const { data: tickets, error: ticketsError } = await supabase
+        .from("tickets")
+        .select("created_at, status, ticket_type_id")
+        .in("ticket_type_id", typeIds)
+        .gte("created_at", startDate.toISOString())
+
+      if (!ticketsError && tickets) {
+        tickets.forEach((ticket) => {
+          const dateStr = new Date(ticket.created_at).toISOString().split("T")[0]
+          const stat = dailyStats.get(dateStr)
+          if (stat) {
+            stat.created += 1
+            if (ticket.status === "active") stat.sold += 1
+            if (ticket.status === "used") stat.scanned += 1
+          }
+        })
+      } else if (ticketsError) {
+        console.error("Error fetching tickets for activity:", ticketsError)
+      }
+    } else if (typesError) {
+      console.error("Error fetching ticket types for activity:", typesError)
+    }
+  }
+
+  return Array.from(dailyStats.values()).reverse()
+}
+
+export async function getCoordinatorEventCategoryStats(creatorId: string) {
+  // Obtener eventos con categoría del coordinador
+  const { data: events, error: eventsError } = await supabase
+    .from("events")
+    .select("id, category")
+    .eq("creator_id", creatorId)
+
+  if (eventsError) {
+    console.error("Error fetching events for categories:", eventsError)
+    return []
+  }
+
+  const categoryStats = new Map<string, { category: string; events: number; tickets: number; sold: number }>()
+  const eventIds = Array.isArray(events) ? events.map((e) => e.id) : []
+
+  // Inicializar eventos por categoría
+  if (Array.isArray(events)) {
+    events.forEach((evt) => {
+      const cat = evt.category || "Sin categoría"
+      const existing = categoryStats.get(cat) || { category: cat, events: 0, tickets: 0, sold: 0 }
+      existing.events += 1
+      categoryStats.set(cat, existing)
+    })
+  }
+
+  // Obtener tipos de tickets y acumular por categoría
+  if (eventIds.length > 0) {
+    const { data: types, error: typesError } = await supabase
+      .from("ticket_types")
+      .select("event_id, max_quantity, available_quantity")
+      .in("event_id", eventIds)
+
+    if (!typesError && Array.isArray(types)) {
+      const eventToCategory = new Map<string, string>()
+      if (Array.isArray(events)) {
+        events.forEach((e) => eventToCategory.set(e.id, e.category || "Sin categoría"))
+      }
+
+      types.forEach((t) => {
+        const cat = eventToCategory.get(t.event_id) || "Sin categoría"
+        const existing = categoryStats.get(cat) || { category: cat, events: 0, tickets: 0, sold: 0 }
+        existing.tickets += t.max_quantity || 0
+        existing.sold += Math.max((t.max_quantity || 0) - (t.available_quantity || 0), 0)
+        categoryStats.set(cat, existing)
+      })
+    } else if (typesError) {
+      console.error("Error fetching ticket types for categories:", typesError)
+    }
+  }
+
+  return Array.from(categoryStats.values())
+}
+
+export async function getCoordinatorTicketStatusStats(creatorId: string) {
+  const { data: events, error: eventsError } = await supabase
+    .from("events")
+    .select("id")
+    .eq("creator_id", creatorId)
+
+  if (eventsError) {
+    console.error("Error fetching events for status stats:", eventsError)
+    return []
+  }
+
+  const eventIds = Array.isArray(events) ? events.map((e) => e.id) : []
+  if (eventIds.length === 0) return []
+
+  const { data: types, error: typesError } = await supabase
+    .from("ticket_types")
+    .select("id, event_id")
+    .in("event_id", eventIds)
+
+  if (typesError || !Array.isArray(types) || types.length === 0) {
+    if (typesError) console.error("Error fetching ticket types for status stats:", typesError)
+    return []
+  }
+
+  const typeIds = Array.isArray(types) ? types.map((t) => t.id) : []
+  const { data: tickets, error: ticketsError } = await supabase
+    .from("tickets")
+    .select("status, ticket_type_id")
+    .in("ticket_type_id", typeIds)
+
+  if (ticketsError) {
+    console.error("Error fetching tickets for status stats:", ticketsError)
+    return []
+  }
+
+  const statusStats = new Map<string, number>()
+  (tickets || []).forEach((t) => {
+    const s = t.status || "unknown"
+    statusStats.set(s, (statusStats.get(s) || 0) + 1)
+  })
+
+  return Array.from(statusStats.entries()).map(([status, count]) => ({ status, count }))
+}

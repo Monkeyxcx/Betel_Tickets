@@ -25,11 +25,13 @@ import {
 } from "@/lib/tickets"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useRole } from "@/hooks/use-role"
 
 function AdminEventTicketsContent() {
   const params = useParams()
   const router = useRouter()
   const eventId = params.id as string
+  const { user, isAdmin } = useRole()
 
   const [event, setEvent] = useState<Event | null>(null)
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
@@ -57,6 +59,12 @@ const loadData = useCallback(async () => {
         router.push("/admin/events")
         return
       }
+      // Restringir acceso si no es el creador y no es admin
+      if (!isAdmin && eventData?.creator_id && eventData.creator_id !== user?.id) {
+        alert("No tienes permiso para gestionar tickets de este evento")
+        router.push("/admin/events")
+        return
+      }
       setEvent(eventData)
 
       // Cargar tipos de tickets
@@ -71,7 +79,7 @@ const loadData = useCallback(async () => {
     } finally {
       setLoading(false)
     }
-  }, [eventId, router])
+  }, [eventId, router, isAdmin, user?.id])
 
   useEffect(() => {
     loadData()
@@ -376,7 +384,7 @@ const loadData = useCallback(async () => {
 
 export default function AdminEventTicketsPage() {
   return (
-    <AuthGuard requireAuth={true} adminOnly={true}>
+    <AuthGuard requireAuth={true} allowedRoles={["admin", "coordinator"]}>
       <AdminEventTicketsContent />
     </AuthGuard>
   )

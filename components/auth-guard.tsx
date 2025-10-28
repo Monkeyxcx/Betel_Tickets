@@ -14,7 +14,8 @@ interface AuthGuardProps {
   redirectTo?: string
   adminOnly?: boolean
   staffOnly?: boolean
-  allowedRoles?: string[]
+  coordinatorOnly?: boolean
+  allowedRoles?: Array<"user" | "staff" | "coordinator" | "admin">
 }
 
 export function AuthGuard({
@@ -23,10 +24,11 @@ export function AuthGuard({
   redirectTo = "/login",
   adminOnly = false,
   staffOnly = false,
+  coordinatorOnly = false,
   allowedRoles = [],
 }: AuthGuardProps) {
   const { user, loading } = useAuth()
-  const { isAdmin, isStaff, hasAnyRole } = useRole()
+  const { isAdmin, isStaff, isCoordinator, hasAnyRole } = useRole()
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(true)
 
@@ -47,6 +49,11 @@ export function AuthGuard({
         return
       }
 
+      if (coordinatorOnly && !isCoordinator) {
+        router.push("/")
+        return
+      }
+
       if (allowedRoles.length > 0 && !hasAnyRole(allowedRoles)) {
         router.push("/")
         return
@@ -54,7 +61,7 @@ export function AuthGuard({
 
       setIsChecking(false)
     }
-  }, [user, loading, requireAuth, redirectTo, adminOnly, staffOnly, allowedRoles, isAdmin, isStaff, hasAnyRole, router])
+  }, [user, loading, requireAuth, redirectTo, adminOnly, staffOnly, coordinatorOnly, allowedRoles, isAdmin, isStaff, isCoordinator, hasAnyRole, router])
 
   if (loading || isChecking) {
     return (
@@ -76,6 +83,10 @@ export function AuthGuard({
   }
 
   if (staffOnly && !isStaff) {
+    return null
+  }
+
+  if (coordinatorOnly && !isCoordinator) {
     return null
   }
 

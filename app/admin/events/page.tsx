@@ -13,9 +13,10 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Edit, Trash2, Calendar, MapPin, Loader2, ArrowLeft, Ticket } from "lucide-react"
-import { getActiveEvents, createEvent, updateEvent, deleteEvent, type Event, type CreateEventData } from "@/lib/events"
+import { getAdminEventsForUser, createEvent, updateEvent, deleteEvent, type Event, type CreateEventData } from "@/lib/events"
 import Link from "next/link"
 import { ImageUpload } from "@/components/image-upload"
+import { useRole } from "@/hooks/use-role"
 
 function AdminEventsContent() {
   const [events, setEvents] = useState<Event[]>([])
@@ -25,6 +26,7 @@ function AdminEventsContent() {
   const [successMessage, setSuccessMessage] = useState("")
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("create")
+  const { user, isAdmin } = useRole()
 
   const [formData, setFormData] = useState<CreateEventData>({
     name: "",
@@ -37,18 +39,22 @@ function AdminEventsContent() {
   })
 
   useEffect(() => {
-    loadEvents()
-  }, [])
-
-  const loadEvents = async () => {
-    setLoading(true)
-    const { data, error } = await getActiveEvents()
-    if (data) {
-      setEvents(data)
-    } else if (error) {
-      console.error("Error loading events:", error)
+    if (user?.id) {
+      loadEvents()
     }
-    setLoading(false)
+  }, [user?.id, isAdmin])
+
+  const fetchEvents = async () => {
+    if (!user?.id) return
+    
+    try {
+      const eventsData = await getAdminEventsForUser(user.id, user.role)
+      setEvents(eventsData)
+    } catch (error) {
+      console.error("Error fetching events:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,7 +74,7 @@ function AdminEventsContent() {
           loadEvents()
         }
       } else {
-        const { data, error } = await createEvent(formData)
+        const { data, error } = await createEvent({ ...formData, creator_id: user!.id })
         if (error) {
           alert(`Error al crear evento: ${error}`)
         } else {
@@ -232,19 +238,6 @@ function AdminEventsContent() {
                       onChange={(url) => setFormData({ ...formData, image_url: url })}
                       onPreviewChange={setImagePreview}
                     />
-                    {imagePreview && (
-                      <div className="mt-2">
-                        <p className="text-sm text-muted-foreground mb-2">Vista previa:</p>
-                        <div className="relative w-full h-40 bg-gray-100 rounded-md overflow-hidden">
-                          <img
-                            src={imagePreview || "/placeholder.svg"}
-                            alt="Vista previa"
-                            className="w-full h-full object-cover"
-                            onError={() => setImagePreview(null)}
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -391,7 +384,7 @@ function AdminEventsContent() {
 
 export default function AdminEventsPage() {
   return (
-    <AuthGuard requireAuth={true} adminOnly={true}>
+    <AuthGuard requireAuth={true} allowedRoles={["admin", "coordinator"]}>
       <AdminEventsContent />
     </AuthGuard>
   )

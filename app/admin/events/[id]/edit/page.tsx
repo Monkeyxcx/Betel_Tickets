@@ -15,11 +15,13 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import { getEventById, updateEvent, type Event, type CreateEventData } from "@/lib/events"
 import Link from "next/link"
 import { ImageUpload } from "@/components/image-upload"
+import { useRole } from "@/hooks/use-role"
 
 function EditEventContent() {
   const params = useParams()
   const router = useRouter()
   const eventId = params.id as string
+  const { user, isAdmin } = useRole()
 
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
@@ -41,6 +43,12 @@ function EditEventContent() {
     const { data, error } = await getEventById(eventId)
     if (data) {
       setEvent(data)
+      // Restringir acceso si no es el creador y no es admin
+      if (!isAdmin && data.creator_id && data.creator_id !== user?.id) {
+        alert("No tienes permiso para editar este evento")
+        router.push("/admin/events")
+        return
+      }
       setFormData({
         name: data.name,
         description: data.description,
@@ -54,7 +62,7 @@ function EditEventContent() {
       console.error("Error loading event:", error)
     }
     setLoading(false)
-  }, [eventId])
+  }, [eventId, isAdmin, user?.id, router])
 
   useEffect(() => {
     loadEvent()
@@ -242,7 +250,7 @@ function EditEventContent() {
 
 export default function EditEventPage() {
   return (
-    <AuthGuard requireAuth={true} adminOnly={true}>
+    <AuthGuard requireAuth={true} allowedRoles={["admin", "coordinator"]}>
       <EditEventContent />
     </AuthGuard>
   )

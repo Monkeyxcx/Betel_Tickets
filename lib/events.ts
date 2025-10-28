@@ -10,6 +10,7 @@ export interface Event {
   category?: string
   featured: boolean
   status: "active" | "inactive" | "sold_out"
+  creator_id?: string
   created_at: string
   updated_at: string
 }
@@ -22,6 +23,7 @@ export interface CreateEventData {
   image_url?: string
   category?: string
   featured?: boolean
+  creator_id: string
 }
 
 // Obtener todos los eventos activos
@@ -122,6 +124,29 @@ export async function createEvent(eventData: CreateEventData): Promise<{ data: E
   } catch (error) {
     console.error("Error in createEvent:", error)
     return { data: null, error: "Error al crear evento" }
+  }
+}
+
+// Obtener eventos para panel admin según rol
+export async function getAdminEventsForUser(
+  userId: string,
+  isSuperAdmin: boolean,
+): Promise<{ data: Event[] | null; error: string | null }> {
+  try {
+    console.log("Fetching admin events for user:", userId, "isSuperAdmin:", isSuperAdmin)
+    let query = supabase.from("events").select("*").order("event_date", { ascending: true })
+    if (!isSuperAdmin) {
+      query = query.eq("creator_id", userId)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.error("Supabase error in getAdminEventsForUser:", error)
+      return { data: null, error: error.message }
+    }
+    return { data, error: null }
+  } catch (error) {
+    console.error("Error in getAdminEventsForUser:", error)
+    return { data: null, error: "Error al obtener eventos de admin" }
   }
 }
 
