@@ -7,13 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { CalendarDays, Ticket, DollarSign, Users, TrendingUp, BarChart3, Plus } from "lucide-react"
-import { 
-  getCoordinatorPlatformStatistics, 
-  getCoordinatorDailySalesStatistics, 
-  getCoordinatorDailyTicketsStatistics,
-  getCoordinatorEventCategoryStats,
-  getCoordinatorTicketStatusStats
-} from "@/lib/statistics"
+import * as Stats from "@/lib/statistics"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts"
 
 interface PlatformStats {
@@ -65,19 +59,32 @@ export default function CoordinatorDashboard() {
       if (!user?.id) return
 
       try {
-        const [platform, dailySales, dailyTickets, categories, statuses] = await Promise.all([
-          getCoordinatorPlatformStatistics(user.id),
-          getCoordinatorDailySalesStatistics(user.id),
-          getCoordinatorDailyTicketsStatistics(user.id),
-          getCoordinatorEventCategoryStats(user.id),
-          getCoordinatorTicketStatusStats(user.id)
-        ])
+        // Guard against misbound imports or runtime module resolution issues
+        const platform = typeof Stats.getCoordinatorPlatformStatistics === "function"
+          ? await Stats.getCoordinatorPlatformStatistics(user.id)
+          : { totalEvents: 0, totalTickets: 0, totalRevenue: 0, soldTickets: 0, availableTickets: 0 }
+
+        const dailySales = typeof Stats.getCoordinatorDailySalesStatistics === "function"
+          ? await Stats.getCoordinatorDailySalesStatistics(user.id)
+          : []
+
+        const dailyTickets = typeof Stats.getCoordinatorDailyTicketsStatistics === "function"
+          ? await Stats.getCoordinatorDailyTicketsStatistics(user.id)
+          : []
+
+        const categories = typeof Stats.getCoordinatorEventCategoryStats === "function"
+          ? await Stats.getCoordinatorEventCategoryStats(user.id)
+          : []
+
+        const statuses = typeof Stats.getCoordinatorTicketStatusStats === "function"
+          ? await Stats.getCoordinatorTicketStatusStats(user.id)
+          : []
 
         setPlatformStats(platform)
-        setDailySalesStats(dailySales)
-        setDailyTicketsStats(dailyTickets)
-        setCategoryStats(categories)
-        setStatusStats(statuses)
+        setDailySalesStats(Array.isArray(dailySales) ? dailySales : [])
+        setDailyTicketsStats(Array.isArray(dailyTickets) ? dailyTickets : [])
+        setCategoryStats(Array.isArray(categories) ? categories : [])
+        setStatusStats(Array.isArray(statuses) ? statuses : [])
       } catch (error) {
         console.error("Error fetching coordinator statistics:", error)
       } finally {

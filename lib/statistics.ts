@@ -26,6 +26,20 @@ const isSupabaseConfigured = () => {
   return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 }
 
+// Detect browser/network aborted fetches to avoid noisy logging
+function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  const anyErr = err as any
+  const msg = typeof anyErr?.message === "string" ? anyErr.message : ""
+  const name = typeof anyErr?.name === "string" ? anyErr.name : ""
+  return (
+    name === "AbortError" ||
+    msg.includes("AbortError") ||
+    msg.toLowerCase().includes("aborted") ||
+    msg.toLowerCase().includes("the operation was aborted")
+  )
+}
+
 // Mock data for development
 const mockStats: PlatformStats = {
   total_tickets_sold: 0,
@@ -53,7 +67,7 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
       .select("*", { count: "exact", head: true })
 
     if (ticketsError) {
-      console.error("Error fetching tickets count:", ticketsError)
+      if (!isAbortError(ticketsError)) console.error("Error fetching tickets count:", ticketsError)
     }
 
     // Obtener total de eventos
@@ -62,7 +76,7 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
       .select("*", { count: "exact", head: true })
 
     if (eventsError) {
-      console.error("Error fetching events count:", eventsError)
+      if (!isAbortError(eventsError)) console.error("Error fetching events count:", eventsError)
     }
 
     // Obtener total de usuarios
@@ -71,7 +85,7 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
       .select("*", { count: "exact", head: true })
 
     if (usersError) {
-      console.error("Error fetching users count:", usersError)
+      if (!isAbortError(usersError)) console.error("Error fetching users count:", usersError)
     }
 
     // Obtener eventos activos
@@ -81,7 +95,8 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
       .eq("status", "active")
 
     if (activeEventsError) {
-      console.error("Error fetching active events count:", activeEventsError)
+      if (!isAbortError(activeEventsError))
+        console.error("Error fetching active events count:", activeEventsError)
     }
 
     // Obtener eventos próximos (en los próximos 30 días)
@@ -96,7 +111,8 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
       .lte("event_date", thirtyDaysFromNow.toISOString())
 
     if (upcomingEventsError) {
-      console.error("Error fetching upcoming events count:", upcomingEventsError)
+      if (!isAbortError(upcomingEventsError))
+        console.error("Error fetching upcoming events count:", upcomingEventsError)
     }
 
     // Calcular ingresos totales
@@ -108,6 +124,8 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
     let totalRevenue = 0
     if (!ordersError && ordersData) {
       totalRevenue = ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+    } else if (ordersError) {
+      if (!isAbortError(ordersError)) console.error("Error fetching orders for revenue:", ordersError)
     }
 
     const stats: PlatformStats = {
@@ -123,7 +141,7 @@ export async function getPlatformStatistics(): Promise<{ data: PlatformStats | n
     console.log("Platform statistics fetched successfully:", stats)
     return { data: stats, error: null }
   } catch (error) {
-    console.error("Error in getPlatformStatistics:", error)
+    if (!isAbortError(error)) console.error("Error in getPlatformStatistics:", error)
     // Fallback to mock data in case of error
     return { data: mockStats, error: null }
   }
@@ -169,6 +187,10 @@ export async function getDailySalesStatistics(): Promise<{
       .order("created_at", { ascending: true })
 
     if (ordersError) {
+      if (isAbortError(ordersError)) {
+        // Silent abort: return empty series without error
+        return { data: [], error: null }
+      }
       console.error("Error fetching daily sales data:", ordersError)
       return { data: null, error: ordersError.message }
     }
@@ -204,6 +226,9 @@ export async function getDailySalesStatistics(): Promise<{
     console.log("Daily sales statistics fetched successfully:", salesStats)
     return { data: salesStats, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: [], error: null }
+    }
     console.error("Error in getDailySalesStatistics:", error)
     return { data: null, error: "Error al obtener estadísticas de ventas diarias" }
   }
@@ -246,6 +271,9 @@ export async function getDailyTicketsStatistics(): Promise<{
       .order("created_at", { ascending: true })
 
     if (ticketsError) {
+      if (isAbortError(ticketsError)) {
+        return { data: [], error: null }
+      }
       console.error("Error fetching daily tickets data:", ticketsError)
       return { data: null, error: ticketsError.message }
     }
@@ -279,6 +307,9 @@ export async function getDailyTicketsStatistics(): Promise<{
     console.log("Daily tickets statistics fetched successfully:", ticketsStats)
     return { data: ticketsStats, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: [], error: null }
+    }
     console.error("Error in getDailyTicketsStatistics:", error)
     return { data: null, error: "Error al obtener estadísticas de tickets diarios" }
   }
@@ -306,6 +337,9 @@ export async function getEventCategoryStats(): Promise<{
     const { data, error } = await supabase.from("events").select("category").eq("status", "active")
 
     if (error) {
+      if (isAbortError(error)) {
+        return { data: [], error: null }
+      }
       console.error("Error fetching category stats:", error)
       return { data: null, error: error.message }
     }
@@ -325,6 +359,9 @@ export async function getEventCategoryStats(): Promise<{
     console.log("Category statistics fetched successfully:", categoryStats)
     return { data: categoryStats, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: [], error: null }
+    }
     console.error("Error in getEventCategoryStats:", error)
     return { data: null, error: "Error al obtener estadísticas por categoría" }
   }
@@ -350,6 +387,9 @@ export async function getTicketStatusStats(): Promise<{
     const { data: ticketsData, error: ticketsError } = await supabase.from("tickets").select("status")
 
     if (ticketsError) {
+      if (isAbortError(ticketsError)) {
+        return { data: { active: 0, used: 0, cancelled: 0 }, error: null }
+      }
       console.error("Error fetching ticket status data:", ticketsError)
       return { data: null, error: ticketsError.message }
     }
@@ -369,6 +409,9 @@ export async function getTicketStatusStats(): Promise<{
     console.log("Ticket status statistics fetched successfully:", statusCount)
     return { data: statusCount, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: { active: 0, used: 0, cancelled: 0 }, error: null }
+    }
     console.error("Error in getTicketStatusStats:", error)
     return { data: null, error: "Error al obtener estadísticas de tickets" }
   }
@@ -413,7 +456,7 @@ export async function getCoordinatorPlatformStatistics(creatorId: string) {
     .eq("creator_id", creatorId)
 
   if (eventsError) {
-    console.error("Error fetching coordinator events:", eventsError)
+    if (!isAbortError(eventsError)) console.error("Error fetching coordinator events:", eventsError)
     return { totalEvents: 0, totalTickets: 0, totalRevenue: 0, soldTickets: 0, availableTickets: 0 }
   }
 
@@ -433,7 +476,7 @@ export async function getCoordinatorPlatformStatistics(creatorId: string) {
       totalTickets = types.reduce((sum, t) => sum + (t.max_quantity || 0), 0)
       availableTickets = types.reduce((sum, t) => sum + (t.available_quantity || 0), 0)
     } else if (typesError) {
-      console.error("Error fetching ticket types:", typesError)
+      if (!isAbortError(typesError)) console.error("Error fetching ticket types:", typesError)
     }
   }
 
@@ -451,7 +494,7 @@ export async function getCoordinatorPlatformStatistics(creatorId: string) {
     if (!ordersError && orders) {
       totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
     } else if (ordersError) {
-      console.error("Error fetching orders for revenue:", ordersError)
+      if (!isAbortError(ordersError)) console.error("Error fetching orders for revenue:", ordersError)
     }
   }
 
@@ -474,7 +517,7 @@ export async function getCoordinatorDailySalesStatistics(creatorId: string, days
     .eq("creator_id", creatorId)
 
   if (eventsError) {
-    console.error("Error fetching coordinator events for sales:", eventsError)
+    if (!isAbortError(eventsError)) console.error("Error fetching coordinator events for sales:", eventsError)
     return []
   }
 
@@ -507,7 +550,7 @@ export async function getCoordinatorDailySalesStatistics(creatorId: string, days
         }
       })
     } else if (ordersError) {
-      console.error("Error fetching coordinator orders:", ordersError)
+      if (!isAbortError(ordersError)) console.error("Error fetching coordinator orders:", ordersError)
     }
   }
 
@@ -524,7 +567,7 @@ export async function getCoordinatorDailyTicketsStatistics(creatorId: string, da
     .eq("creator_id", creatorId)
 
   if (eventsError) {
-    console.error("Error fetching events for ticket activity:", eventsError)
+    if (!isAbortError(eventsError)) console.error("Error fetching events for ticket activity:", eventsError)
     return []
   }
 
@@ -565,10 +608,10 @@ export async function getCoordinatorDailyTicketsStatistics(creatorId: string, da
           }
         })
       } else if (ticketsError) {
-        console.error("Error fetching tickets for activity:", ticketsError)
+        if (!isAbortError(ticketsError)) console.error("Error fetching tickets for activity:", ticketsError)
       }
     } else if (typesError) {
-      console.error("Error fetching ticket types for activity:", typesError)
+      if (!isAbortError(typesError)) console.error("Error fetching ticket types for activity:", typesError)
     }
   }
 
@@ -583,7 +626,7 @@ export async function getCoordinatorEventCategoryStats(creatorId: string) {
     .eq("creator_id", creatorId)
 
   if (eventsError) {
-    console.error("Error fetching events for categories:", eventsError)
+    if (!isAbortError(eventsError)) console.error("Error fetching events for categories:", eventsError)
     return []
   }
 
@@ -621,7 +664,7 @@ export async function getCoordinatorEventCategoryStats(creatorId: string) {
         categoryStats.set(cat, existing)
       })
     } else if (typesError) {
-      console.error("Error fetching ticket types for categories:", typesError)
+      if (!isAbortError(typesError)) console.error("Error fetching ticket types for categories:", typesError)
     }
   }
 
@@ -635,7 +678,7 @@ export async function getCoordinatorTicketStatusStats(creatorId: string) {
     .eq("creator_id", creatorId)
 
   if (eventsError) {
-    console.error("Error fetching events for status stats:", eventsError)
+    if (!isAbortError(eventsError)) console.error("Error fetching events for status stats:", eventsError)
     return []
   }
 
@@ -648,7 +691,7 @@ export async function getCoordinatorTicketStatusStats(creatorId: string) {
     .in("event_id", eventIds)
 
   if (typesError || !Array.isArray(types) || types.length === 0) {
-    if (typesError) console.error("Error fetching ticket types for status stats:", typesError)
+    if (typesError && !isAbortError(typesError)) console.error("Error fetching ticket types for status stats:", typesError)
     return []
   }
 
@@ -659,7 +702,7 @@ export async function getCoordinatorTicketStatusStats(creatorId: string) {
     .in("ticket_type_id", typeIds)
 
   if (ticketsError) {
-    console.error("Error fetching tickets for status stats:", ticketsError)
+    if (!isAbortError(ticketsError)) console.error("Error fetching tickets for status stats:", ticketsError)
     return []
   }
 

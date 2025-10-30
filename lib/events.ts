@@ -1,5 +1,19 @@
 import { supabase } from "./supabase"
 
+// Detect browser/network aborted fetches to avoid noisy logging
+function isAbortError(err: unknown): boolean {
+  if (!err) return false
+  const anyErr = err as any
+  const msg = typeof anyErr?.message === "string" ? anyErr.message : ""
+  const name = typeof anyErr?.name === "string" ? anyErr.name : ""
+  return (
+    name === "AbortError" ||
+    msg.includes("AbortError") ||
+    msg.toLowerCase().includes("aborted") ||
+    msg.toLowerCase().includes("the operation was aborted")
+  )
+}
+
 export interface Event {
   id: string
   name: string
@@ -37,6 +51,9 @@ export async function getActiveEvents(): Promise<{ data: Event[] | null; error: 
       .order("event_date", { ascending: true })
 
     if (error) {
+      if (isAbortError(error)) {
+        return { data: [], error: null }
+      }
       console.error("Supabase error in getActiveEvents:", error)
       return { data: null, error: error.message }
     }
@@ -44,6 +61,9 @@ export async function getActiveEvents(): Promise<{ data: Event[] | null; error: 
     console.log("Fetched", data?.length || 0, "active events")
     return { data, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: [], error: null }
+    }
     console.error("Error in getActiveEvents:", error)
     return { data: null, error: "Error al obtener eventos" }
   }
@@ -62,6 +82,9 @@ export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error
       .limit(6)
 
     if (error) {
+      if (isAbortError(error)) {
+        return { data: [], error: null }
+      }
       console.error("Supabase error in getFeaturedEvents:", error)
       return { data: null, error: error.message }
     }
@@ -69,6 +92,9 @@ export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error
     console.log("Fetched", data?.length || 0, "featured events")
     return { data, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: [], error: null }
+    }
     console.error("Error in getFeaturedEvents:", error)
     return { data: null, error: "Error al obtener eventos destacados" }
   }
@@ -86,6 +112,9 @@ export async function getEventsByCategory(category: string): Promise<{ data: Eve
       .order("event_date", { ascending: true })
 
     if (error) {
+      if (isAbortError(error)) {
+        return { data: [], error: null }
+      }
       console.error("Supabase error in getEventsByCategory:", error)
       return { data: null, error: error.message }
     }
@@ -93,6 +122,9 @@ export async function getEventsByCategory(category: string): Promise<{ data: Eve
     console.log("Fetched", data?.length || 0, "events for category", category)
     return { data, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: [], error: null }
+    }
     console.error("Error in getEventsByCategory:", error)
     return { data: null, error: "Error al obtener eventos por categoría" }
   }
@@ -115,14 +147,14 @@ export async function createEvent(eventData: CreateEventData): Promise<{ data: E
       .single()
 
     if (error) {
-      console.error("Supabase error in createEvent:", error)
+      if (!isAbortError(error)) console.error("Supabase error in createEvent:", error)
       return { data: null, error: error.message }
     }
 
     console.log("Event created successfully:", data.id)
     return { data, error: null }
   } catch (error) {
-    console.error("Error in createEvent:", error)
+    if (!isAbortError(error)) console.error("Error in createEvent:", error)
     return { data: null, error: "Error al crear evento" }
   }
 }
@@ -140,11 +172,17 @@ export async function getAdminEventsForUser(
     }
     const { data, error } = await query
     if (error) {
+      if (isAbortError(error)) {
+        return { data: [], error: null }
+      }
       console.error("Supabase error in getAdminEventsForUser:", error)
       return { data: null, error: error.message }
     }
     return { data, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: [], error: null }
+    }
     console.error("Error in getAdminEventsForUser:", error)
     return { data: null, error: "Error al obtener eventos de admin" }
   }
@@ -168,14 +206,14 @@ export async function updateEvent(
       .single()
 
     if (error) {
-      console.error("Supabase error in updateEvent:", error)
+      if (!isAbortError(error)) console.error("Supabase error in updateEvent:", error)
       return { data: null, error: error.message }
     }
 
     console.log("Event updated successfully:", eventId)
     return { data, error: null }
   } catch (error) {
-    console.error("Error in updateEvent:", error)
+    if (!isAbortError(error)) console.error("Error in updateEvent:", error)
     return { data: null, error: "Error al actualizar evento" }
   }
 }
@@ -187,14 +225,14 @@ export async function deleteEvent(eventId: string): Promise<{ success: boolean; 
     const { error } = await supabase.from("events").delete().eq("id", eventId)
 
     if (error) {
-      console.error("Supabase error in deleteEvent:", error)
+      if (!isAbortError(error)) console.error("Supabase error in deleteEvent:", error)
       return { success: false, error: error.message }
     }
 
     console.log("Event deleted successfully:", eventId)
     return { success: true, error: null }
   } catch (error) {
-    console.error("Error in deleteEvent:", error)
+    if (!isAbortError(error)) console.error("Error in deleteEvent:", error)
     return { success: false, error: "Error al eliminar evento" }
   }
 }
@@ -212,9 +250,12 @@ export async function getEventById(eventId: string): Promise<{ data: Event | nul
     const { data, error } = await supabase.from("events").select("*").eq("id", eventId).single()
 
     if (error) {
-      console.error("Supabase error in getEventById:", error)
+      if (!isAbortError(error)) console.error("Supabase error in getEventById:", error)
       if (error.code === "PGRST116") {
         return { data: null, error: "Evento no encontrado" }
+      }
+      if (isAbortError(error)) {
+        return { data: null, error: null }
       }
       return { data: null, error: error.message }
     }
@@ -226,6 +267,9 @@ export async function getEventById(eventId: string): Promise<{ data: Event | nul
     console.log("Event fetched successfully:", data.id)
     return { data, error: null }
   } catch (error) {
+    if (isAbortError(error)) {
+      return { data: null, error: null }
+    }
     console.error("Error in getEventById:", error)
     return { data: null, error: "Error al obtener evento" }
   }

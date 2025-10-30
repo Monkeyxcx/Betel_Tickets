@@ -38,7 +38,12 @@ export default function ContactoPage() {
       })
 
       if (!response.ok) {
-        throw new Error("Error al enviar el mensaje. Por favor, inténtalo de nuevo.")
+        let serverMessage = "Error al enviar el mensaje. Por favor, inténtalo de nuevo."
+        try {
+          const data = await response.json()
+          if (data?.error) serverMessage = data.error
+        } catch {}
+        throw new Error(serverMessage)
       }
 
       setSubmitted(true)

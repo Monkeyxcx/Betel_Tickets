@@ -3,7 +3,8 @@ import { Resend } from "resend";
 
 export async function POST(request: Request) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const toEmail = process.env.SUPPORT_EMAIL;
+  const toEmail = process.env.SUPPORT_EMAIL || "brahiangomez13@gmail.com";
+  const fromEmail = process.env.SUPPORT_FROM_EMAIL || "onboarding@resend.dev";
 
   if (!resendApiKey || !toEmail) {
     console.error("RESEND_API_KEY or SUPPORT_EMAIL is not set");
@@ -23,10 +24,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
     }
 
-    const fromEmail = "onboarding@resend.dev";
+    // Evitar usar dominios públicos (gmail, outlook, yahoo, hotmail) como remitente
+    const publicDomains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com"]
+    const fromDomain = fromEmail.split("@")[1]?.toLowerCase()
+    const safeFromEmail = fromDomain && publicDomains.includes(fromDomain) ? "onboarding@resend.dev" : fromEmail
 
-    await resend.emails.send({
-      from: fromEmail,
+    const { error: resendError } = await resend.emails.send({
+      from: safeFromEmail,
       to: toEmail,
       subject: `Nuevo mensaje de contacto: ${asunto}`,
       replyTo: email,
@@ -51,7 +55,14 @@ export async function POST(request: Request) {
           </div>
         </div>
       `,
+      text: `Nuevo Mensaje de Contacto\n\nNombre: ${nombre}\nEmail: ${email}\nCategoría: ${categoria || 'No especificada'}\nAsunto: ${asunto}\n\nMensaje:\n${mensaje}`,
     });
+
+    if (resendError) {
+      console.error("Resend error:", resendError);
+      const message = typeof resendError === "object" && resendError !== null && "message" in resendError ? (resendError as any).message : "Error desconocido en el proveedor de correo";
+      return NextResponse.json({ error: `No se pudo enviar el correo: ${message}` }, { status: 500 });
+    }
 
     return NextResponse.json({ message: "Email enviado correctamente" }, { status: 200 });
   } catch (error) {

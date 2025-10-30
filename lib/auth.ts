@@ -411,7 +411,7 @@ export async function refreshUserData(): Promise<User | null> {
 // Función para actualizar el role de un usuario (usando email)
 export async function updateUserRole(
   userEmail: string,
-  newRole: "user" | "staff" | "admin",
+  newRole: "user" | "staff" | "coordinator" | "admin",
 ): Promise<{ success: boolean; error: string | null }> {
   if (!isSupabaseConfigured()) {
     return { success: false, error: "Funcionalidad no disponible en modo desarrollo" }
@@ -439,8 +439,8 @@ export async function updateUserRole(
 export async function requestPasswordReset(email: string): Promise<{ error: string | null }> {
   // Mock para desarrollo si Supabase no está configurado
   if (!isSupabaseConfigured()) {
-    console.log("Mock password reset request for:", email)
-    return { error: null }
+    console.log("Supabase no configurado. No se puede enviar correo de recuperación para:", email)
+    return { error: "El servicio de correo no está configurado. Por favor, contacta soporte o intenta más tarde." }
   }
 
   try {

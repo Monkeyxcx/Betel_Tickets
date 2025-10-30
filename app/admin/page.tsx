@@ -7,6 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TrendingUp, CalendarDays, CreditCard, Users, Ticket, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import type { User } from "@/lib/auth"
+import { updateUserRole } from "@/lib/auth"
+import { getUsers } from "@/lib/staff"
 import {
   LineChart,
   Line,
@@ -34,10 +39,31 @@ function AdminDashboardContent() {
   const [salesData, setSalesData] = useState<DailySalesData[] | null>(null)
   const [ticketsData, setTicketsData] = useState<DailyTicketsData[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [users, setUsers] = useState<User[]>([])
+  const [usersLoading, setUsersLoading] = useState(true)
+  const [roleChanges, setRoleChanges] = useState<Record<string, "user" | "staff" | "coordinator" | "admin">>({})
+  const [savingEmail, setSavingEmail] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [page, setPage] = useState(0)
+  const pageSize = 10
+  const [total, setTotal] = useState(0)
 
   useEffect(() => {
     loadStatistics()
   }, [])
+
+  useEffect(() => {
+    const h = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(0)
+    }, 500)
+    return () => clearTimeout(h)
+  }, [search])
+
+  useEffect(() => {
+    loadUsers()
+  }, [debouncedSearch, page])
 
   const loadStatistics = async () => {
     try {
@@ -58,6 +84,58 @@ function AdminDashboardContent() {
       console.error("Error loading statistics:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadUsers = async () => {
+    try {
+      setUsersLoading(true)
+      const { data, error, count } = await getUsers({
+        search: debouncedSearch,
+        limit: pageSize,
+        offset: page * pageSize,
+      })
+      if (error) {
+        console.error("Error al cargar usuarios:", error)
+        setUsers([])
+      } else {
+        setUsers(data || [])
+        setTotal(count || 0)
+      }
+    } catch (e) {
+      console.error("Error al cargar usuarios:", e)
+      setUsers([])
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const handleRoleChange = (email: string, newRole: "user" | "staff" | "coordinator" | "admin") => {
+    setRoleChanges((prev) => ({ ...prev, [email]: newRole }))
+  }
+
+  const handleSaveRole = async (email: string) => {
+    const newRole = roleChanges[email]
+    if (!newRole) return
+    try {
+      setSavingEmail(email)
+      const { success, error } = await updateUserRole(email, newRole)
+      if (!success) {
+        alert(error || "No se pudo actualizar el rol")
+        return
+      }
+      // Actualizar en memoria
+      setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, role: newRole } : u)))
+      // Limpiar cambio aplicado
+      setRoleChanges((prev) => {
+        const { [email]: _, ...rest } = prev
+        return rest
+      })
+    } catch (e) {
+      console.error("Error actualizando rol:", e)
+      alert("Error actualizando rol del usuario")
+    } finally {
+      setSavingEmail(null)
     }
   }
 
@@ -227,21 +305,103 @@ function AdminDashboardContent() {
         <TabsContent value="usuarios" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Usuarios Registrados</CardTitle>
-              <CardDescription>Lista de usuarios registrados en la plataforma</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Gestión de Usuarios
+              </CardTitle>
+              <CardDescription>Listado de usuarios y edición de roles</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8">
-                <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Total de usuarios: {formatNumber(stats?.total_users ?? 0)}</h3>
-                <p className="text-muted-foreground">
-                  {stats?.total_users === null
-                    ? "No se pudo obtener información de usuarios"
-                    : stats?.total_users === 0
-                      ? "Aún no hay usuarios registrados"
-                      : "Usuarios activos en la plataforma"}
-                </p>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por nombre o email"
+                  className="w-full md:w-[320px]"
+                />
+                <div className="text-sm text-muted-foreground">Mostrando {pageSize} por página</div>
               </div>
+              {usersLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : users.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">No hay usuarios para mostrar.</div>
+              ) : (
+                <div className="w-full overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground">
+                        <th className="p-2 font-medium">Nombre</th>
+                        <th className="p-2 font-medium">Email</th>
+                        <th className="p-2 font-medium">Rol</th>
+                        <th className="p-2 font-medium">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((u) => {
+                        const currentRole = roleChanges[u.email] ?? u.role
+                        return (
+                          <tr key={u.email} className="border-t">
+                            <td className="p-2 truncate">{u.name}</td>
+                            <td className="p-2 truncate text-muted-foreground">{u.email}</td>
+                            <td className="p-2">
+                              <Select value={currentRole} onValueChange={(val) => handleRoleChange(u.email, val as any)}>
+                                <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Selecciona rol" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="user">Usuario</SelectItem>
+                                  <SelectItem value="staff">Staff</SelectItem>
+                                  <SelectItem value="coordinator">Coordinador</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-2">
+                              <Button
+                                variant="default"
+                                size="sm"
+                                disabled={savingEmail === u.email || currentRole === u.role}
+                                onClick={() => handleSaveRole(u.email)}
+                              >
+                                {savingEmail === u.email ? (
+                                  <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Guardando</span>
+                                ) : (
+                                  "Guardar"
+                                )}
+                              </Button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Página {total > 0 ? page + 1 : 0} de {total > 0 ? Math.ceil(total / pageSize) : 0}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={page === 0}
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      >
+                        Anterior
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={(page + 1) * pageSize >= total}
+                        onClick={() => setPage((p) => p + 1)}
+                      >
+                        Siguiente
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

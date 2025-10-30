@@ -69,6 +69,73 @@ export async function getAllUsers(): Promise<{ data: User[] | null; error: strin
   }
 }
 
+// Obtener usuarios con paginación y búsqueda
+export async function getUsers(options?: {
+  search?: string
+  limit?: number
+  offset?: number
+}): Promise<{ data: User[] | null; error: string | null; count: number }> {
+  const limit = options?.limit ?? 10
+  const offset = options?.offset ?? 0
+  const search = (options?.search ?? "").trim()
+
+  if (!isSupabaseConfigured()) {
+    // Modo desarrollo: usar mock y aplicar filtro + paginación en memoria
+    const mockUsers: User[] = [
+      { id: "user-1", email: "user1@example.com", name: "Usuario 1", role: "user" },
+      { id: "user-2", email: "user2@example.com", name: "Usuario 2", role: "user" },
+      { id: "staff-1", email: "staff@example.com", name: "Personal del Evento", role: "staff" },
+      { id: "admin-1", email: "admin@example.com", name: "admin", role: "admin" },
+      { id: "coord-1", email: "coord@example.com", name: "Coordinador", role: "coordinator" },
+      { id: "qa-1", email: "qa@qa.com", name: "QA", role: "user" },
+      { id: "qa-2", email: "qa2@qa.com", name: "QA2", role: "user" },
+      { id: "qa-3", email: "qa3@qa.com", name: "QA3", role: "user" },
+      { id: "user-3", email: "user3@example.com", name: "Usuario 3", role: "user" },
+      { id: "user-4", email: "user4@example.com", name: "Usuario 4", role: "user" },
+      { id: "user-5", email: "user5@example.com", name: "Usuario 5", role: "user" },
+      { id: "user-6", email: "user6@example.com", name: "Usuario 6", role: "user" },
+    ]
+    const filtered = search
+      ? mockUsers.filter(
+          (u) =>
+            u.name.toLowerCase().includes(search.toLowerCase()) ||
+            u.email.toLowerCase().includes(search.toLowerCase()),
+        )
+      : mockUsers
+    const count = filtered.length
+    const sliced = filtered.slice(offset, offset + limit)
+    return { data: sliced, error: null, count }
+  }
+
+  try {
+    console.log("Fetching users with pagination", { search, limit, offset })
+    let query = supabase
+      .from("users")
+      .select("*", { count: "exact" })
+      .order("name", { ascending: true })
+
+    if (search) {
+      const q = `%${search}%`
+      // Buscar por nombre o email
+      query = query.or(`name.ilike.${q},email.ilike.${q}`)
+    }
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+
+    if (error) {
+      console.error("Error fetching users (paginated):", error)
+      return { data: null, error: error.message, count: 0 }
+    }
+
+    return { data: data || [], error: null, count: count ?? (data?.length || 0) }
+  } catch (error) {
+    console.error("Error in getUsers:", error)
+    return { data: null, error: "Error al obtener usuarios", count: 0 }
+  }
+}
+
 // Asignar staff a un evento
 export async function assignStaffToEvent(
   userId: string,
