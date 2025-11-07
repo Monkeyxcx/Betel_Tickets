@@ -17,6 +17,7 @@ import { getAdminEventsForUser, createEvent, updateEvent, deleteEvent, type Even
 import Link from "next/link"
 import { ImageUpload } from "@/components/image-upload"
 import { useRole } from "@/hooks/use-role"
+import { useAuth } from "@/hooks/use-auth"
 
 function AdminEventsContent() {
   const [events, setEvents] = useState<Event[]>([])
@@ -24,9 +25,11 @@ function AdminEventsContent() {
   const [creating, setCreating] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [successMessage, setSuccessMessage] = useState("")
+  const [dateError, setDateError] = useState("")
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("create")
-  const { user, isAdmin } = useRole()
+  const { user } = useAuth()
+  const { isAdmin } = useRole()
 
   const [formData, setFormData] = useState<CreateEventData>({
     name: "",
@@ -44,12 +47,15 @@ function AdminEventsContent() {
     }
   }, [user?.id, isAdmin])
 
-  const fetchEvents = async () => {
+  const loadEvents = async () => {
     if (!user?.id) return
-    
+
     try {
-      const eventsData = await getAdminEventsForUser(user.id, user.role)
-      setEvents(eventsData)
+      const { data, error } = await getAdminEventsForUser(user.id, isAdmin)
+      if (error) {
+        console.error("Error fetching events:", error)
+      }
+      setEvents(data || [])
     } catch (error) {
       console.error("Error fetching events:", error)
     } finally {
@@ -57,10 +63,30 @@ function AdminEventsContent() {
     }
   }
 
+  const isEventDateValid = (dateStr: string) => {
+    if (!dateStr) return false
+    let selected = new Date(dateStr)
+    if (isNaN(selected.getTime())) {
+      selected = new Date(`${dateStr}T00:00:00`)
+    }
+    if (isNaN(selected.getTime())) return false
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const selectedDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate())
+    return selectedDay >= today
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
     setSuccessMessage("")
+    setDateError("")
+
+    if (!isEventDateValid(formData.event_date)) {
+      setCreating(false)
+      setDateError("La fecha del evento no puede ser anterior al día de creación.")
+      return
+    }
 
     try {
       if (editingEvent) {
@@ -219,6 +245,9 @@ function AdminEventsContent() {
                       onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
                       required
                     />
+                    {dateError && (
+                      <p className="text-sm text-red-600">{dateError}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">

@@ -40,9 +40,29 @@ export interface CreateEventData {
   creator_id: string
 }
 
+// Marcar eventos pasados como inactivos automáticamente
+export async function expirePastEvents(): Promise<void> {
+  try {
+    const nowIso = new Date().toISOString()
+    const { error } = await supabase
+      .from("events")
+      .update({ status: "inactive" })
+      .lt("event_date", nowIso)
+      .eq("status", "active")
+
+    if (error) {
+      if (!isAbortError(error)) console.error("Supabase error in expirePastEvents:", error)
+    }
+  } catch (error) {
+    if (!isAbortError(error)) console.error("Error in expirePastEvents:", error)
+  }
+}
+
 // Obtener todos los eventos activos
 export async function getActiveEvents(): Promise<{ data: Event[] | null; error: string | null }> {
   try {
+    // Asegura que eventos vencidos estén inactivos antes de listar
+    await expirePastEvents()
     console.log("Fetching active events from Supabase")
     const { data, error } = await supabase
       .from("events")
@@ -72,6 +92,8 @@ export async function getActiveEvents(): Promise<{ data: Event[] | null; error: 
 // Obtener eventos destacados
 export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error: string | null }> {
   try {
+    // Asegura que eventos vencidos estén inactivos antes de listar
+    await expirePastEvents()
     console.log("Fetching featured events from Supabase")
     const { data, error } = await supabase
       .from("events")
@@ -103,6 +125,8 @@ export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error
 // Obtener eventos por categoría
 export async function getEventsByCategory(category: string): Promise<{ data: Event[] | null; error: string | null }> {
   try {
+    // Asegura que eventos vencidos estén inactivos antes de listar
+    await expirePastEvents()
     console.log("Fetching events by category from Supabase:", category)
     const { data, error } = await supabase
       .from("events")
@@ -133,6 +157,24 @@ export async function getEventsByCategory(category: string): Promise<{ data: Eve
 // Crear nuevo evento (solo admin)
 export async function createEvent(eventData: CreateEventData): Promise<{ data: Event | null; error: string | null }> {
   try {
+    // Validación server-side: la fecha del evento no puede ser anterior al día actual
+    if (!eventData.event_date) {
+      return { data: null, error: "La fecha del evento es obligatoria" }
+    }
+    let selected = new Date(eventData.event_date)
+    if (isNaN(selected.getTime())) {
+      selected = new Date(`${eventData.event_date}T00:00:00`)
+    }
+    if (isNaN(selected.getTime())) {
+      return { data: null, error: "Formato de fecha inválido" }
+    }
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const selectedDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate())
+    if (selectedDay < today) {
+      return { data: null, error: "La fecha del evento no puede ser anterior al día de creación" }
+    }
+
     console.log("Creating new event in Supabase:", eventData.name)
     const { data, error } = await supabase
       .from("events")
@@ -165,6 +207,8 @@ export async function getAdminEventsForUser(
   isSuperAdmin: boolean,
 ): Promise<{ data: Event[] | null; error: string | null }> {
   try {
+    // Asegura que eventos vencidos estén inactivos antes de listar
+    await expirePastEvents()
     console.log("Fetching admin events for user:", userId, "isSuperAdmin:", isSuperAdmin)
     let query = supabase.from("events").select("*").order("event_date", { ascending: true })
     if (!isSuperAdmin) {
@@ -195,12 +239,28 @@ export async function updateEvent(
 ): Promise<{ data: Event | null; error: string | null }> {
   try {
     console.log("Updating event in Supabase:", eventId)
+    // Si la fecha proporcionada es pasada, marca como inactivo
+    const payload: any = {
+      ...eventData,
+      updated_at: new Date().toISOString(),
+    }
+    if (eventData.event_date) {
+      let selected = new Date(eventData.event_date)
+      if (isNaN(selected.getTime())) selected = new Date(`${eventData.event_date}T00:00:00`)
+      if (!isNaN(selected.getTime())) {
+        const now = new Date()
+        if (selected < now) {
+          payload.status = "inactive"
+        } else {
+          // Si la fecha es futura o de hoy, reactiva el evento
+          payload.status = "active"
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from("events")
-      .update({
-        ...eventData,
-        updated_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq("id", eventId)
       .select()
       .single()

@@ -26,16 +26,18 @@ import {
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useRole } from "@/hooks/use-role"
+import { useAuth } from "@/hooks/use-auth"
 
 function AdminEventTicketsContent() {
   const params = useParams()
   const router = useRouter()
   const eventId = params.id as string
-  const { user, isAdmin } = useRole()
+  const { user, loading: authLoading } = useAuth()
+  const { isAdmin } = useRole()
 
   const [event, setEvent] = useState<Event | null>(null)
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
-  const [loading, setLoading] = useState(true)
+  const [pageLoading, setPageLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [editingTicket, setEditingTicket] = useState<TicketType | null>(null)
   const [successMessage, setSuccessMessage] = useState("")
@@ -50,7 +52,7 @@ function AdminEventTicketsContent() {
   })
 
 const loadData = useCallback(async () => {
-    setLoading(true)
+    setPageLoading(true)
     try {
       // Cargar información del evento
       const { data: eventData, error: eventError } = await getEventById(eventId)
@@ -77,13 +79,15 @@ const loadData = useCallback(async () => {
     } catch (error) {
       alert("Error al cargar datos")
     } finally {
-      setLoading(false)
+      setPageLoading(false)
     }
   }, [eventId, router, isAdmin, user?.id])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (!authLoading && user) {
+      loadData()
+    }
+  }, [loadData, authLoading, user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

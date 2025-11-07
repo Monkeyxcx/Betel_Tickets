@@ -16,15 +16,17 @@ import { getEventById, updateEvent, type Event, type CreateEventData } from "@/l
 import Link from "next/link"
 import { ImageUpload } from "@/components/image-upload"
 import { useRole } from "@/hooks/use-role"
+import { useAuth } from "@/hooks/use-auth"
 
 function EditEventContent() {
   const params = useParams()
   const router = useRouter()
   const eventId = params.id as string
-  const { user, isAdmin } = useRole()
+  const { user, loading: authLoading } = useAuth()
+  const { isAdmin } = useRole()
 
   const [event, setEvent] = useState<Event | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [pageLoading, setPageLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
 
@@ -39,7 +41,7 @@ function EditEventContent() {
   })
 
   const loadEvent = useCallback(async () => {
-    setLoading(true)
+    setPageLoading(true)
     const { data, error } = await getEventById(eventId)
     if (data) {
       setEvent(data)
@@ -61,12 +63,14 @@ function EditEventContent() {
     } else if (error) {
       console.error("Error loading event:", error)
     }
-    setLoading(false)
+    setPageLoading(false)
   }, [eventId, isAdmin, user?.id, router])
 
   useEffect(() => {
-    loadEvent()
-  }, [loadEvent])
+    if (!authLoading && user) {
+      loadEvent()
+    }
+  }, [loadEvent, authLoading, user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,7 +94,7 @@ function EditEventContent() {
     }
   }
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="container py-12">
         <div className="flex items-center justify-center py-8">
