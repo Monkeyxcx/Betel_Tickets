@@ -40,7 +40,7 @@ export default function Header() {
   ]
 
   // Agregar enlaces específicos por rol
-  if (isStaff) {
+  if (isStaff || isAdmin) {
     navigation.push({ name: "Escáner", href: "/staff/scanner" })
   }
 
@@ -110,7 +110,7 @@ export default function Header() {
                   Role: {user.role} | ID: {user.id.slice(0, 8)}...
                 </div>
 
-                {isStaff && (
+                {(isStaff || isAdmin) && (
                   <> 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
@@ -209,7 +209,7 @@ export default function Header() {
                     </Link>
                   </Button>
 
-                  {isStaff && (
+                  {(isStaff || isAdmin) && (
                     <Button asChild variant="outline" size="sm">
                       <Link href="/staff/scanner" onClick={() => setIsMenuOpen(false)}>
                         <QrCode className="mr-2 h-4 w-4" />

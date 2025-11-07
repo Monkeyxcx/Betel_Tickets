@@ -158,7 +158,7 @@ const loadData = useCallback(async () => {
     setEditingTicket(null)
   }
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -259,7 +259,9 @@ const loadData = useCallback(async () => {
                       min="0"
                       step="0.01"
                       value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: Number.parseFloat(e.target.value) })}
+                      onChange={e =>
+                        setFormData({ ...formData, price: Number.parseFloat(e.target.value) || 0 })
+                      }
                       required
                     />
                   </div>
@@ -271,7 +273,9 @@ const loadData = useCallback(async () => {
                       type="number"
                       min="1"
                       value={formData.max_quantity}
-                      onChange={(e) => setFormData({ ...formData, max_quantity: Number.parseInt(e.target.value) })}
+                      onChange={e =>
+                        setFormData({ ...formData, max_quantity: Number.parseInt(e.target.value) || 1 })
+                      }
                       required
                     />
                   </div>
@@ -284,8 +288,11 @@ const loadData = useCallback(async () => {
                       min="0"
                       max={formData.max_quantity}
                       value={formData.available_quantity}
-                      onChange={(e) =>
-                        setFormData({ ...formData, available_quantity: Number.parseInt(e.target.value) })
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          available_quantity: Number.parseInt(e.target.value) || 0,
+                        })
                       }
                       required
                     />

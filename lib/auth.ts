@@ -228,6 +228,7 @@ async function getOrCreateUserFromCustomTable(authUser: SupabaseAuthUser): Promi
 
     // Si el usuario existe, devolverlo
     if (userData) {
+      console.log("User data from custom table:", userData)
       console.log("User found in custom table:", userData)
       return {
         id: userData.id,
