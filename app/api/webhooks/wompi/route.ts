@@ -2,14 +2,24 @@ import { NextResponse } from "next/server";
 import { wompi, WompiTransaction } from "@/lib/wompi";
 import { supabase } from "@/lib/supabase";
 import { Resend } from "resend";
-import { qrGenerator } from "@/lib/qr-generator";
+import { generateQRCodeURL } from "@/lib/qr-generator";
 import crypto from "crypto";
+
+// Ensure Node.js runtime for crypto usage and server APIs
+export const runtime = "nodejs";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const wompiWebhookSecret = process.env.WOMPI_WEBHOOK_SECRET!;
 
 async function sendTicketEmail(customerEmail: string, ticket: any, event: any) {
-  const qrCodeDataURL = await qrGenerator.generate(ticket.id);
+  // Skip sending if RESEND_API_KEY is not configured
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not configured; skipping ticket email.");
+    return;
+  }
+
+  // Use the ticket_code for the QR content
+  const qrCodeDataURL = generateQRCodeURL(ticket.ticket_code);
 
   try {
     await resend.emails.send({
@@ -21,9 +31,9 @@ async function sendTicketEmail(customerEmail: string, ticket: any, event: any) {
         <p>Aquí tienes tu entrada para ${event.name}.</p>
         <p><strong>Evento:</strong> ${event.name}</p>
         <p><strong>Fecha:</strong> ${new Date(
-          event.date
+          event.event_date
         ).toLocaleDateString()}</p>
-        <p><strong>Ticket ID:</strong> ${ticket.id}</p>
+        <p><strong>Código de Ticket:</strong> ${ticket.ticket_code}</p>
         <img src="${qrCodeDataURL}" alt="QR Code" />
         <p>Presenta este código QR en la entrada del evento.</p>
       `,
@@ -69,9 +79,17 @@ export async function POST(req: Request) {
         // Get ticket details from order reference
         const [_provider, eventId, ticketTypeId, _timestamp] = order.id.split("-");
 
-        // Get quantity from the original transaction
-        const originalTransaction = await wompi.getTransaction(transaction.id);
-        const quantity = originalTransaction.amount_in_cents / (order.total_amount * 100) // This is a bit of a hack
+        // Determine quantity without failing when Wompi credentials are missing
+        let originalAmountInCents: number | undefined = undefined;
+        try {
+          const originalTransaction = await wompi.getTransaction(transaction.id);
+          originalAmountInCents = originalTransaction?.amount_in_cents;
+        } catch (err) {
+          console.warn("Could not fetch original transaction from Wompi; falling back to webhook data.", err);
+        }
+        const effectiveAmountInCents = originalAmountInCents ?? transaction.amount_in_cents;
+        const unitPriceInCents = Math.round(order.total_amount * 100);
+        const quantity = Math.max(1, Math.round(effectiveAmountInCents / unitPriceInCents)); // fallback to at least 1
 
         // Create Tickets
         const ticketsToCreate = Array.from({ length: Number(quantity) }).map(
@@ -93,7 +111,7 @@ export async function POST(req: Request) {
         // Get Event and Customer details
         const { data: eventData } = await supabase
           .from("events")
-          .select("name, date")
+          .select("name, event_date")
           .eq("id", eventId)
           .single();
 
