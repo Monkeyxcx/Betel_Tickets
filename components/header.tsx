@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X, User, Plus, QrCode, Settings, RefreshCw } from "lucide-react"
 import { usePathname } from "next/navigation"
@@ -21,10 +21,27 @@ export default function Header() {
   const pathname = usePathname()
   const { user, loading, signOut, refreshUser } = useAuth()
   const { isAdmin, isStaff, isCoordinator, role } = useRole()
+  const isHome = pathname === "/"
+  const [headerVisible, setHeaderVisible] = useState(!isHome)
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
   }
+
+  // Mostrar el header sólo cuando el usuario se desplaza en la home
+  useEffect(() => {
+    if (!isHome) {
+      setHeaderVisible(true)
+      return
+    }
+    const onScroll = () => {
+      const show = window.scrollY > 8
+      setHeaderVisible(show || isMenuOpen)
+    }
+    onScroll()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [isHome, isMenuOpen])
 
   const handleRefreshUser = async () => {
     console.log("Refreshing user data...")
@@ -54,7 +71,19 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header
+      className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ${
+        isMenuOpen
+          ? "bg-background shadow-sm"
+          : "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      } ${
+        isHome
+          ? headerVisible
+            ? "h-16 opacity-100 translate-y-0"
+            : "h-0 opacity-0 -translate-y-full pointer-events-none overflow-hidden"
+          : "h-16"
+      }`}
+    >
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="font-bold text-xl">
@@ -180,7 +209,7 @@ export default function Header() {
 
       {/* Mobile Navigation */}
       {isMenuOpen && (
-        <div className="md:hidden">
+        <div className="md:hidden bg-background">
           <div className="container py-4 space-y-4">
             <nav className="flex flex-col space-y-4">
               {navigation.map((item) => (

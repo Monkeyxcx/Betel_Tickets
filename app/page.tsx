@@ -75,7 +75,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
       {heroEvent && (
-        <section className="relative w-full h-[70vh] overflow-hidden">
+        <section className="relative w-full h-[100vh] md:h-[70vh] overflow-hidden">
           <div className="absolute inset-0">
             <img
               src={
