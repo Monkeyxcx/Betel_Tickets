@@ -706,7 +706,7 @@ export async function getCoordinatorTicketStatusStats(creatorId: string) {
     return []
   }
 
-  const statusStats = new Map<string, number>()
+  const statusStats = new Map<string, number>();
   (tickets || []).forEach((t) => {
     const s = t.status || "unknown"
     statusStats.set(s, (statusStats.get(s) || 0) + 1)

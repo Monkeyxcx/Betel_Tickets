@@ -184,23 +184,40 @@ export async function getEventStaff(eventId: string): Promise<{ data: StaffMembe
 
   try {
     console.log("Fetching staff for event:", eventId)
-
-    const { data, error } = await supabase
+    // Evitar joins anidados: traer staff simple y enriquecer con usuarios/evento
+    const { data: staffRows, error: staffError } = await supabase
       .from("staff_members")
-      .select(`
-        *,
-        user:users(*),
-        event:events(id, name, event_date)
-      `)
+      .select("*")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("Error fetching event staff:", error)
-      return { data: null, error: error.message }
+    if (staffError) {
+      console.error("Error fetching event staff:", staffError)
+      // Devolver lista vacía para no romper la UI
+      return { data: [], error: null }
     }
 
-    return { data, error: null }
+    const userIds = Array.from(new Set((staffRows || []).map((r: any) => r.user_id))).filter(Boolean)
+
+    const [usersRes, eventRes] = await Promise.all([
+      userIds.length
+        ? supabase.from("users").select("id, name, email").in("id", userIds)
+        : Promise.resolve({ data: [], error: null } as any),
+      supabase.from("events").select("id, name, event_date").eq("id", eventId).single(),
+    ])
+
+    const usersData = (usersRes as any)?.data || []
+    const eventData = (eventRes as any)?.data || null
+    const userMap = new Map<string, { id: string; name: string; email: string }>()
+    usersData.forEach((u: any) => userMap.set(u.id, u))
+
+    const enriched = (staffRows || []).map((r: any) => ({
+      ...r,
+      user: userMap.get(r.user_id),
+      event: eventData ? { id: eventData.id, name: eventData.name, event_date: eventData.event_date } : undefined,
+    }))
+
+    return { data: enriched, error: null }
   } catch (error) {
     console.error("Error in getEventStaff:", error)
     return { data: null, error: "Error al obtener staff del evento" }
@@ -418,6 +435,95 @@ export async function getScanHistory(
   }
 }
 
+// Obtener conteo de escaneos por staff para un evento
+export async function getEventScanCountsByStaff(eventId: string): Promise<{
+  data:
+    | Array<{
+        staff_id: string
+        success: number
+        already_used: number
+        invalid: number
+        total: number
+      }>
+    | null
+  error: string | null
+}> {
+  if (!isSupabaseConfigured()) {
+    return { data: [], error: null }
+  }
+
+  try {
+    console.log("Fetching scan counts by staff for event:", eventId)
+    // Obtener IDs de tipos de tickets del evento
+    const { data: types, error: typesError } = await supabase
+      .from("ticket_types")
+      .select("id")
+      .eq("event_id", eventId)
+
+    if (typesError) {
+      console.error("Error fetching ticket types (counts):", typesError)
+      return { data: null, error: typesError.message }
+    }
+
+    const typeIds = (types || []).map((t: any) => t.id)
+    if (typeIds.length === 0) {
+      return { data: [], error: null }
+    }
+
+    // Obtener IDs de tickets del evento
+    const { data: tickets, error: ticketsError } = await supabase
+      .from("tickets")
+      .select("id")
+      .in("ticket_type_id", typeIds)
+
+    if (ticketsError) {
+      console.error("Error fetching tickets (counts):", ticketsError)
+      return { data: null, error: ticketsError.message }
+    }
+
+    const ticketIds = (tickets || []).map((t: any) => t.id)
+    if (ticketIds.length === 0) {
+      return { data: [], error: null }
+    }
+
+    // Traer escaneos para esos tickets
+    const { data: scans, error: scansError } = await supabase
+      .from("ticket_scans")
+      .select("scanned_by, scan_result, ticket_id")
+      .in("ticket_id", ticketIds)
+
+    if (scansError) {
+      console.error("Error fetching scans (counts):", scansError)
+      return { data: null, error: scansError.message }
+    }
+
+    // Agregar por staff_id y tipo de resultado
+    const counts = new Map<
+      string,
+      { staff_id: string; success: number; already_used: number; invalid: number; total: number }
+    >();
+
+    (scans || []).forEach((scan: any) => {
+      const staffId = scan.scanned_by as string
+      const result = scan.scan_result as "success" | "already_used" | "invalid"
+      const current =
+        counts.get(staffId) || { staff_id: staffId, success: 0, already_used: 0, invalid: 0, total: 0 }
+
+      if (result === "success") current.success += 1
+      else if (result === "already_used") current.already_used += 1
+      else if (result === "invalid") current.invalid += 1
+      current.total += 1
+
+      counts.set(staffId, current)
+    })
+
+    return { data: Array.from(counts.values()), error: null }
+  } catch (error) {
+    console.error("Error in getEventScanCountsByStaff:", error)
+    return { data: null, error: "Error al obtener métricas por staff" }
+  }
+}
+
 // Obtener estadísticas de escaneos para un evento
 export async function getEventScanStats(eventId: string): Promise<{
   data: {
@@ -442,32 +548,50 @@ export async function getEventScanStats(eventId: string): Promise<{
 
   try {
     console.log("Fetching scan stats for event:", eventId)
+    // Obtener IDs de tipos de tickets del evento
+    const { data: types, error: typesError } = await supabase
+      .from("ticket_types")
+      .select("id")
+      .eq("event_id", eventId)
 
-    // Obtener total de tickets para el evento
-    const { data: totalTickets, error: totalError } = await supabase
-      .from("tickets")
-      .select("id", { count: "exact" })
-      .eq("ticket_type.event_id", eventId)
-
-    if (totalError) {
-      console.error("Error fetching total tickets:", totalError)
-      return { data: null, error: totalError.message }
+    if (typesError) {
+      console.error("Error fetching ticket types:", typesError)
+      return { data: null, error: typesError.message }
     }
 
-    // Obtener tickets escaneados
-    const { data: scannedTickets, error: scannedError } = await supabase
-      .from("tickets")
-      .select("id", { count: "exact" })
-      .eq("ticket_type.event_id", eventId)
-      .eq("status", "used")
+    const typeIds = (types || []).map((t: any) => t.id)
 
-    if (scannedError) {
-      console.error("Error fetching scanned tickets:", scannedError)
-      return { data: null, error: scannedError.message }
+    let total = 0
+    let scanned = 0
+
+    if (typeIds.length > 0) {
+      // Total de tickets del evento
+      const { data: totalTickets, error: totalError } = await supabase
+        .from("tickets")
+        .select("id")
+        .in("ticket_type_id", typeIds)
+
+      if (totalError) {
+        console.error("Error fetching total tickets:", totalError)
+        return { data: null, error: totalError.message }
+      }
+
+      // Tickets escaneados (status used)
+      const { data: scannedTickets, error: scannedError } = await supabase
+        .from("tickets")
+        .select("id")
+        .in("ticket_type_id", typeIds)
+        .eq("status", "used")
+
+      if (scannedError) {
+        console.error("Error fetching scanned tickets:", scannedError)
+        return { data: null, error: scannedError.message }
+      }
+
+      total = totalTickets?.length || 0
+      scanned = scannedTickets?.length || 0
     }
 
-    const total = totalTickets?.length || 0
-    const scanned = scannedTickets?.length || 0
     const pending = total - scanned
     const scanRate = total > 0 ? (scanned / total) * 100 : 0
 

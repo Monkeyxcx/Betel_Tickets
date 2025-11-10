@@ -20,12 +20,19 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
 
 import {
   getPlatformStatistics,
   getDailySalesStatistics,
   getDailyTicketsStatistics,
+  getEventCategoryStats,
+  getTicketStatusStats,
   formatNumber,
   formatCurrency,
   formatDate,
@@ -38,6 +45,8 @@ function AdminDashboardContent() {
   const [stats, setStats] = useState<PlatformStats | null>(null)
   const [salesData, setSalesData] = useState<DailySalesData[] | null>(null)
   const [ticketsData, setTicketsData] = useState<DailyTicketsData[] | null>(null)
+  const [categoryData, setCategoryData] = useState<Array<{ category: string; count: number }> | null>(null)
+  const [ticketStatusData, setTicketStatusData] = useState<Array<{ status: string; count: number }> | null>(null)
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<User[]>([])
   const [usersLoading, setUsersLoading] = useState(true)
@@ -80,6 +89,23 @@ function AdminDashboardContent() {
       // Cargar estadísticas de tickets diarios
       const { data: ticketsStatsData } = await getDailyTicketsStatistics()
       setTicketsData(ticketsStatsData)
+
+      // Cargar estadísticas globales por categoría de eventos
+      const { data: categories } = await getEventCategoryStats()
+      setCategoryData(categories)
+
+      // Cargar estadísticas globales por estado de tickets
+      const { data: statusObj } = await getTicketStatusStats()
+      if (statusObj) {
+        const arr = [
+          { status: "active", count: statusObj.active || 0 },
+          { status: "used", count: statusObj.used || 0 },
+          { status: "cancelled", count: statusObj.cancelled || 0 },
+        ]
+        setTicketStatusData(arr)
+      } else {
+        setTicketStatusData(null)
+      }
     } catch (error) {
       console.error("Error loading statistics:", error)
     } finally {
@@ -160,6 +186,8 @@ function AdminDashboardContent() {
       </ResponsiveContainer>
     );
   }
+
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"]
   if (loading) {
     return (
       <div className="container py-12">
@@ -247,6 +275,7 @@ function AdminDashboardContent() {
           <TabsTrigger value="ventas">Ventas</TabsTrigger>
           <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
           <TabsTrigger value="tickets">Tickets</TabsTrigger>
+          <TabsTrigger value="eventos">Eventos</TabsTrigger>
         </TabsList>
         <TabsContent value="ventas" className="space-y-4">
           <Card>
@@ -456,6 +485,69 @@ function AdminDashboardContent() {
                         : "No hay datos de tickets para mostrar"}
                     </p>
                   </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Estado de Tickets</CardTitle>
+              <CardDescription>Distribución por estado</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {ticketStatusData && ticketStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={ticketStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ status, count }) => `${status}: ${count}`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
+                      {ticketStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center">
+                  <div className="text-center text-muted-foreground">No hay datos de estados de tickets</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="eventos" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" />
+                Eventos por Categoría
+              </CardTitle>
+              <CardDescription>Distribución global de eventos activos por categoría</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {categoryData && categoryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={categoryData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="category" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#8884d8" name="Eventos" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center">
+                  <div className="text-center text-muted-foreground">No hay datos de categorías de eventos</div>
                 </div>
               )}
             </CardContent>

@@ -46,6 +46,7 @@ export default function Header() {
 
   if (isCoordinator) {
     navigation.push({ name: "Coordinación", href: "/coordinator" })
+    navigation.push({ name: "Staff", href: "/admin/staff" })
   }
 
   if (isAdmin) {
@@ -119,10 +120,16 @@ export default function Header() {
                         Escáner de Tickets
                       </Link>
                     </DropdownMenuItem>
+                  </>
+                )}
+
+                {isCoordinator && (
+                  <>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/admin/events" className="flex items-center">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Gestionar Eventos
+                      <Link href="/admin/staff" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Staff de mis eventos
                       </Link>
                     </DropdownMenuItem>
                   </>
@@ -229,6 +236,12 @@ export default function Header() {
                         <Link href="/coordinator/events" onClick={() => setIsMenuOpen(false)}>
                           <Plus className="mr-2 h-4 w-4" />
                           Gestionar Eventos
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/admin/staff" onClick={() => setIsMenuOpen(false)}>
+                          <Settings className="mr-2 h-4 w-4" />
+                          Gestionar Staff
                         </Link>
                       </Button>
                     </>
