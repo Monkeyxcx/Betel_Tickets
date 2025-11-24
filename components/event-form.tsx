@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import type { CreateEventData } from "@/lib/events"
 import { ImageUpload } from "@/components/image-upload"
+import { useRole } from "@/hooks/use-role"
 
 type EventFormData = Omit<CreateEventData, "creator_id">
 
@@ -20,6 +21,7 @@ interface EventFormProps {
 }
 
 export function EventForm({ initialData, submitButtonText, onSubmit }: EventFormProps) {
+  const { isAdmin } = useRole()
   const [form, setForm] = useState<EventFormData>({
     name: initialData?.name ?? "",
     description: initialData?.description ?? "",
@@ -36,7 +38,15 @@ export function EventForm({ initialData, submitButtonText, onSubmit }: EventForm
     e.preventDefault()
     setSubmitting(true)
     try {
-      await onSubmit(form)
+      // Ensure non-admins cannot set featured
+      const dataToSubmit = {
+        ...form,
+        featured: isAdmin ? form.featured : false,
+      }
+      await onSubmit(dataToSubmit)
+    } catch (error) {
+      console.error("Error submitting form:", error)
+      alert("Ocurrió un error al guardar el evento. Por favor intenta de nuevo.")
     } finally {
       setSubmitting(false)
     }
@@ -112,14 +122,16 @@ export function EventForm({ initialData, submitButtonText, onSubmit }: EventForm
           />
         </div>
 
-        <div className="flex items-center space-x-2 md:col-span-2">
-          <Switch
-            id="featured"
-            checked={!!form.featured}
-            onCheckedChange={(checked) => setForm({ ...form, featured: checked })}
-          />
-          <Label htmlFor="featured">Evento Destacado</Label>
-        </div>
+        {isAdmin && (
+          <div className="flex items-center space-x-2 md:col-span-2">
+            <Switch
+              id="featured"
+              checked={!!form.featured}
+              onCheckedChange={(checked) => setForm({ ...form, featured: checked })}
+            />
+            <Label htmlFor="featured">Evento Destacado</Label>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3">
