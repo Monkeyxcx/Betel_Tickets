@@ -2,22 +2,22 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
 import { AuthGuard } from "@/components/auth-guard"
-import { useRole } from "@/hooks/use-role"
+import { QRScanner } from "@/components/qr-scanner"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { QrCode, Camera, CheckCircle, XCircle, AlertTriangle, User, Ticket, RefreshCw } from "lucide-react"
-import { scanTicket, getScanHistory, type TicketScan } from "@/lib/staff"
-import { QRScanner } from "@/components/qr-scanner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useAuth } from "@/hooks/use-auth"
+import { getScanHistory, scanTicket, type TicketScan } from "@/lib/staff"
+import { AlertTriangle, Camera, CheckCircle, QrCode, RefreshCw, Ticket, User, XCircle } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 
 function StaffScannerContent() {
-  const { user } = useRole()
+  const { user } = useAuth()
   const [ticketCode, setTicketCode] = useState("")
   const [scanning, setScanning] = useState(false)
   const [lastScan, setLastScan] = useState<{
@@ -27,47 +27,48 @@ function StaffScannerContent() {
   } | null>(null)
   const [scanHistory, setScanHistory] = useState<TicketScan[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
-  const [scanMode, setScanMode] = useState<"manual" | "camera">("manual")
   const [cameraError, setCameraError] = useState<string | null>(null)
-  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null)
-
-  // Cargar el ticket al leer el qr
-  useEffect(() => {
-    if (ticketCode && ticketCode.trim() && !scanning) {
-      if (ticketCode === lastScannedCode) {
-        // Si es el mismo código, no lo volvemos a procesar
-        return;
-      }
-      setLastScannedCode(ticketCode);
-      handleScan();
-    }
-  }, [ticketCode]);
-  
-
+  const scanningRef = useRef(false)
   const loadScanHistory = async () => {
     if (!user) return
 
     setLoadingHistory(true)
-    const { data, error } = await getScanHistory(undefined, user.id, 20)
+    const { data } = await getScanHistory(undefined, user.id, 20)
     if (data) {
       setScanHistory(data)
     }
     setLoadingHistory(false)
   }
 
-  const handleScan = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault()
+  useEffect(() => {
+    if (!user) return
+    void loadScanHistory()
+  }, [user])
+
+  const processScan = async (rawCode: string) => {
+    const normalizedCode = rawCode.trim().toUpperCase()
+
+    if (!normalizedCode) return
+
+    if (!user) {
+      setLastScan({
+        result: null,
+        ticket: null,
+        error: "La sesion de staff no esta disponible. Recarga la pagina e inicia sesion nuevamente.",
+      })
+      return
     }
 
-    if (!ticketCode.trim() || !user) return
+    if (scanningRef.current) return
 
+    scanningRef.current = true
     setScanning(true)
+    setTicketCode(normalizedCode)
 
     try {
       const result = await scanTicket(
-        ticketCode.trim().toUpperCase(),
+        normalizedCode,
         user.id,
         "Entrada Principal", // Ubicación por defecto
         navigator.userAgent, // Info del dispositivo
@@ -76,19 +77,16 @@ function StaffScannerContent() {
       setLastScan({
         result: result.data,
         ticket: result.ticket,
-        error: result.error
+        error: result.error,
       })
       setTicketCode("")
 
-      // Recargar historial
-      await loadScanHistory()
+      // Refrescar el historial sin bloquear el siguiente escaneo.
+      void loadScanHistory()
 
-      // Auto-focus para el siguiente escaneo
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus()
-        }
-      }, 100)
+      if (inputRef.current) {
+        inputRef.current.focus()
+      }
     } catch (error) {
       console.error("Error scanning ticket:", error)
       setLastScan({
@@ -97,19 +95,22 @@ function StaffScannerContent() {
         error: "Error al procesar el escaneo",
       })
     } finally {
+      scanningRef.current = false
       setScanning(false)
     }
   }
 
+  const handleScan = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault()
+    }
+
+    await processScan(ticketCode)
+  }
+
   const handleQRScan = async (code: string) => {
-    if (!code || !user || scanning) return
-
-    setTicketCode(code)
-
-    // Pequeña pausa para mostrar el código antes de procesarlo
-    setTimeout(() => {
-      handleScan()
-    }, 300)
+    if (!code) return
+    await processScan(code)
   }
 
   const handleCameraError = (error: string) => {
@@ -176,7 +177,7 @@ function StaffScannerContent() {
               <CardDescription>Ingresa el código del ticket o escanea el código QR</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="manual" onValueChange={(value) => setScanMode(value as "manual" | "camera")}>
+              <Tabs defaultValue="manual">
                 <TabsList className="mb-4 w-full">
                   <TabsTrigger value="manual" className="flex-1">
                     <QrCode className="mr-2 h-4 w-4" />

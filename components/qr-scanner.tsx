@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Camera, StopCircle, RefreshCw } from "lucide-react"
 import { Html5Qrcode } from "html5-qrcode"
+import { Camera, RefreshCw, StopCircle } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 
 interface QRScannerProps {
   onScan: (code: string) => void
@@ -16,6 +16,7 @@ export function QRScanner({ onScan, onError }: QRScannerProps) {
   const [loadingCamera, setLoadingCamera] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const lastDetectedRef = useRef<{ code: string; at: number } | null>(null)
 
   // Limpiar el escáner cuando el componente se desmonte
   useEffect(() => {
@@ -47,7 +48,7 @@ export function QRScanner({ onScan, onError }: QRScannerProps) {
 
       // Configuración del escáner
       const config = {
-        fps: 10,
+        fps: 12,
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.2,
       }
@@ -57,14 +58,22 @@ export function QRScanner({ onScan, onError }: QRScannerProps) {
         { facingMode: "environment" }, // Usar cámara trasera
         config,
         (decodedText) => {
-          // Callback cuando se detecta un código QR
+          const normalizedCode = decodedText.trim().toUpperCase()
+          const now = Date.now()
+
+          // Evita disparos repetidos del mismo QR en frames consecutivos.
+          if (
+            lastDetectedRef.current &&
+            lastDetectedRef.current.code === normalizedCode &&
+            now - lastDetectedRef.current.at < 1500
+          ) {
+            return
+          }
+
+          lastDetectedRef.current = { code: normalizedCode, at: now }
           onScan(decodedText)
-          // No detener el escáner para permitir múltiples escaneos
         },
-        (errorMessage) => {
-          // Ignorar mensajes de error durante el escaneo
-          console.log("QR scan error:", errorMessage)
-        },
+        () => {},
       )
 
       setIsScanning(true)

@@ -15,27 +15,37 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // 1. Carga optimista desde localStorage para una carga inicial rápida.
-    setUser(getCurrentUser());
-    setLoading(false); // Permite que la UI se renderice inmediatamente.
+    let isMounted = true
+    const cachedUser = getCurrentUser()
 
-    // 2. onAuthStateChange es la fuente de verdad.
-    // Se ejecutará en la carga inicial y en cualquier evento de autenticación,
-    // corrigiendo el estado optimista si estaba desactualizado.
+    // Mantiene una UI estable mientras se valida la sesión real.
+    if (cachedUser) {
+      setUser(cachedUser)
+    }
+
     const {
       data: { subscription },
     } = onAuthStateChange((user) => {
-      setUser(user);
-    });
+      if (!isMounted) return
 
-    // 3. Se llama a checkAuthStatus para verificar proactivamente la sesión
-    // en la carga, lo que puede ayudar a refrescar un token expirado.
-    checkAuthStatus();
+      setUser(user)
+      setLoading(false)
+    })
+
+    // Verifica la sesión una vez montado el cliente para evitar falsos positivos
+    // basados solo en localStorage y prevenir redirecciones/interrupciones del router.
+    void checkAuthStatus().then((resolvedUser) => {
+      if (!isMounted) return
+
+      setUser(resolvedUser)
+      setLoading(false)
+    })
 
     return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
 
   const signOut = async () => {
     await authSignOut()
@@ -48,7 +58,7 @@ export function useAuth() {
 
   const refreshUser = async () => {
     if (user) {
-      const refreshedUser = await refreshUserData(user.id)
+      const refreshedUser = await refreshUserData()
       if (refreshedUser) {
         setUser(refreshedUser)
       }

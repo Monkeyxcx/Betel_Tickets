@@ -267,9 +267,9 @@ export async function scanTicket(
       .from("tickets")
       .select(`
         *,
-        ticket_type:ticket_types(*),
+        ticket_type:ticket_types(name),
         user:users(name, email),
-        order:orders(*)
+        order:orders(id)
       `)
       .eq("ticket_code", ticketCode)
       .single()
@@ -346,12 +346,42 @@ export async function scanTicket(
       }
     }
 
-    // Marcar ticket como usado
-    const { error: updateError } = await supabase.from("tickets").update({ status: "used" }).eq("id", ticket.id)
+    // Marcar ticket como usado de forma atómica para evitar dobles lecturas concurrentes.
+    const { data: updatedTicketRows, error: updateError } = await supabase
+      .from("tickets")
+      .update({ status: "used" })
+      .eq("id", ticket.id)
+      .eq("status", "active")
+      .select("id")
 
     if (updateError) {
       console.error("Error updating ticket status:", updateError)
       return { data: null, error: "Error al procesar ticket" }
+    }
+
+    if (!updatedTicketRows || updatedTicketRows.length === 0) {
+      const { data: scanRecord } = await supabase
+        .from("ticket_scans")
+        .insert([
+          {
+            ticket_id: ticket.id,
+            scanned_by: scannedBy,
+            scan_location: scanLocation,
+            device_info: deviceInfo,
+            scan_result: "already_used",
+          },
+        ])
+        .select()
+        .single()
+
+      return {
+        data: scanRecord,
+        error: "Ticket ya fue utilizado",
+        ticket: {
+          ...ticket,
+          status: "used",
+        },
+      }
     }
 
     // Registrar escaneo exitoso
