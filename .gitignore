@@ -17,6 +17,11 @@
 /.next/
 /out/
 
+# local artifacts / backups
+/.next-dev.log
+/database/
+/storage/
+
 # production
 /build
 

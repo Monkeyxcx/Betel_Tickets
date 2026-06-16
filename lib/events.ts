@@ -61,13 +61,13 @@ export async function expirePastEvents(): Promise<void> {
 // Obtener todos los eventos activos
 export async function getActiveEvents(): Promise<{ data: Event[] | null; error: string | null }> {
   try {
-    // Asegura que eventos vencidos estén inactivos antes de listar
-    await expirePastEvents()
+    const nowIso = new Date().toISOString()
     console.log("Fetching active events from Supabase")
     const { data, error } = await supabase
       .from("events")
       .select("*")
       .eq("status", "active")
+      .gte("event_date", nowIso)
       .order("event_date", { ascending: true })
 
     if (error) {
@@ -92,13 +92,13 @@ export async function getActiveEvents(): Promise<{ data: Event[] | null; error: 
 // Obtener eventos destacados
 export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error: string | null }> {
   try {
-    // Asegura que eventos vencidos estén inactivos antes de listar
-    await expirePastEvents()
+    const nowIso = new Date().toISOString()
     console.log("Fetching featured events from Supabase")
     const { data, error } = await supabase
       .from("events")
       .select("*")
       .eq("status", "active")
+      .gte("event_date", nowIso)
       .eq("featured", true)
       .order("event_date", { ascending: true })
       .limit(6)
@@ -125,13 +125,13 @@ export async function getFeaturedEvents(): Promise<{ data: Event[] | null; error
 // Obtener eventos por categoría
 export async function getEventsByCategory(category: string): Promise<{ data: Event[] | null; error: string | null }> {
   try {
-    // Asegura que eventos vencidos estén inactivos antes de listar
-    await expirePastEvents()
+    const nowIso = new Date().toISOString()
     console.log("Fetching events by category from Supabase:", category)
     const { data, error } = await supabase
       .from("events")
       .select("*")
       .eq("status", "active")
+      .gte("event_date", nowIso)
       .eq("category", category)
       .order("event_date", { ascending: true })
 
@@ -207,8 +207,6 @@ export async function getAdminEventsForUser(
   isSuperAdmin: boolean,
 ): Promise<{ data: Event[] | null; error: string | null }> {
   try {
-    // Asegura que eventos vencidos estén inactivos antes de listar
-    await expirePastEvents()
     console.log("Fetching admin events for user:", userId, "isSuperAdmin:", isSuperAdmin)
     let query = supabase.from("events").select("*").order("event_date", { ascending: true })
     if (!isSuperAdmin) {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { CalendarDays, Clock, MapPin, Ticket, Loader2, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { EventCarousel } from "@/components/event-carousel"
-import { getActiveEvents, getFeaturedEvents, getEventsByCategory, type Event } from "@/lib/events"
+import { getActiveEvents, type Event } from "@/lib/events"
 
 export default function Home() {
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([])
@@ -20,27 +20,14 @@ export default function Home() {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        // Cargar todos los eventos en paralelo para mejorar el rendimiento
-        const [
-          { data: featured },
-          { data: all },
-          { data: music },
-          { data: theater },
-          { data: sports },
-        ] = await Promise.all([
-          getFeaturedEvents(),
-          getActiveEvents(),
-          getEventsByCategory("musica"),
-          getEventsByCategory("teatro"),
-          getEventsByCategory("deportes"),
-        ]);
+        const { data: all } = await getActiveEvents()
+        const activeEvents = all ?? []
 
-        if (featured) setFeaturedEvents(featured);
-        if (all) setAllEvents(all);
-        if (music) setMusicEvents(music);
-        if (theater) setTheaterEvents(theater);
-        if (sports) setSportsEvents(sports);
-
+        setAllEvents(activeEvents)
+        setFeaturedEvents(activeEvents.filter((event) => event.featured).slice(0, 6))
+        setMusicEvents(activeEvents.filter((event) => event.category === "musica"))
+        setTheaterEvents(activeEvents.filter((event) => event.category === "teatro"))
+        setSportsEvents(activeEvents.filter((event) => event.category === "deportes"))
       } catch (error) {
         console.error("Error loading events:", error)
       } finally {
