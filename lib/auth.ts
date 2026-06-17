@@ -8,6 +8,8 @@ export interface User {
   role: "user" | "staff" | "coordinator" | "admin"
 }
 
+const AUTH_TIMEOUT_MS = 8000
+
 // Helper para obtener la URL base de forma segura en cliente y servidor
 const getURL = () => {
   let url =
@@ -27,6 +29,29 @@ const isSupabaseConfigured = () => {
   console.log("Supabase configured:", configured)
 
   return configured
+}
+
+function clearCachedUser() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("user")
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(label)), timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+  }
 }
 
 export async function signUp(
@@ -189,9 +214,7 @@ export async function signOut(): Promise<void> {
   } catch (error) {
     console.error("Error signing out:", error)
   } finally {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("user")
-    }
+    clearCachedUser()
   }
 }
 
@@ -202,6 +225,7 @@ export function getCurrentUser(): User | null {
       try {
         return JSON.parse(userStr)
       } catch {
+        clearCachedUser()
         return null
       }
     }
@@ -346,22 +370,28 @@ export async function checkAuthStatus(): Promise<User | null> {
     const {
       data: { session },
       error,
-    } = await supabase.auth.getSession()
+    } = await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS, "Auth session check timed out")
 
     if (error) {
       console.error("Error checking auth status:", error)
+      clearCachedUser()
       return null
     }
 
     if (!session?.user) {
       console.log("No active session found")
+      clearCachedUser()
       return null
     }
 
     console.log("Active session found for user:", session.user.id)
 
     try {
-      const user = await getOrCreateUserFromCustomTable(session.user)
+      const user = await withTimeout(
+        getOrCreateUserFromCustomTable(session.user),
+        AUTH_TIMEOUT_MS,
+        "User profile resolution timed out",
+      )
 
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(user))
@@ -370,10 +400,12 @@ export async function checkAuthStatus(): Promise<User | null> {
       return user
     } catch (error) {
       console.error("Error getting user from custom table:", error)
+      clearCachedUser()
       return null
     }
   } catch (error) {
     console.error("Error checking auth status:", error)
+    clearCachedUser()
     return null
   }
 }
@@ -389,14 +421,19 @@ export async function refreshUserData(): Promise<User | null> {
 
     const {
       data: { session },
-    } = await supabase.auth.getSession()
+    } = await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS, "Auth refresh timed out")
 
     if (!session?.user) {
+      clearCachedUser()
       return null
     }
 
     // Usar la función auxiliar para obtener datos actualizados
-    const user = await getOrCreateUserFromCustomTable(session.user)
+    const user = await withTimeout(
+      getOrCreateUserFromCustomTable(session.user),
+      AUTH_TIMEOUT_MS,
+      "User refresh timed out",
+    )
 
     if (typeof window !== "undefined") {
       localStorage.setItem("user", JSON.stringify(user))
@@ -405,6 +442,7 @@ export async function refreshUserData(): Promise<User | null> {
     return user
   } catch (error) {
     console.error("Error refreshing user data:", error)
+    clearCachedUser()
     return null
   }
 }
