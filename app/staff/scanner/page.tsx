@@ -34,7 +34,7 @@ function StaffScannerContent() {
     if (!user) return
 
     setLoadingHistory(true)
-    const { data } = await getScanHistory(undefined, user.id, 20)
+    const { data } = await getScanHistory(undefined, 20)
     if (data) {
       setScanHistory(data)
     }
@@ -67,12 +67,7 @@ function StaffScannerContent() {
     setTicketCode(normalizedCode)
 
     try {
-      const result = await scanTicket(
-        normalizedCode,
-        user.id,
-        "Entrada Principal", // Ubicación por defecto
-        navigator.userAgent, // Info del dispositivo
-      )
+      const result = await scanTicket(normalizedCode, "Entrada Principal", navigator.userAgent)
 
       setLastScan({
         result: result.data,

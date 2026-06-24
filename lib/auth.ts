@@ -8,13 +8,23 @@ export interface User {
   role: "user" | "staff" | "coordinator" | "admin"
 }
 
-const AUTH_TIMEOUT_MS = 8000
+const AUTH_TIMEOUT_MS = 25000
+
+class AuthTimeoutError extends Error {
+  name = "AuthTimeoutError"
+
+  constructor(message: string) {
+    super(message)
+  }
+}
 
 // Helper para obtener la URL base de forma segura en cliente y servidor
 const getURL = () => {
   let url =
     process?.env?.NEXT_PUBLIC_SITE_URL ?? // URL de producción
+    process?.env?.NEXT_PUBLIC_URL ?? // URL pública configurada manualmente
     process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // URL de Vercel
+    (typeof window !== "undefined" ? window.location.origin : undefined) ??
     "http://localhost:3000/"
   url = url.includes("http") ? url : `https://${url}`
   return url.charAt(url.length - 1) === "/" ? url : `${url}/`
@@ -44,7 +54,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
     return await Promise.race([
       promise,
       new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(label)), timeoutMs)
+        timeoutId = setTimeout(() => reject(new AuthTimeoutError(label)), timeoutMs)
       }),
     ])
   } finally {
@@ -86,7 +96,7 @@ export async function signUp(
         data: {
           name,
         },
-        emailRedirectTo: undefined, // No requerir confirmación de email
+        emailRedirectTo: `${getURL()}auth/callback`,
       },
     })
 
@@ -404,6 +414,11 @@ export async function checkAuthStatus(): Promise<User | null> {
       return null
     }
   } catch (error) {
+    if (error instanceof AuthTimeoutError) {
+      console.warn("Auth check timed out; keeping cached user if any")
+      return getCurrentUser()
+    }
+
     console.error("Error checking auth status:", error)
     clearCachedUser()
     return null
@@ -441,6 +456,11 @@ export async function refreshUserData(): Promise<User | null> {
 
     return user
   } catch (error) {
+    if (error instanceof AuthTimeoutError) {
+      console.warn("Auth refresh timed out; keeping cached user if any")
+      return getCurrentUser()
+    }
+
     console.error("Error refreshing user data:", error)
     clearCachedUser()
     return null

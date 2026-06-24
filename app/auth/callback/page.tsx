@@ -14,11 +14,26 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+        const hashError = hashParams.get("error_code") || hashParams.get("error")
+
+        if (hashError) {
+          const errorDescription = hashParams.get("error_description")
+          const errorParam = hashError === "otp_expired" ? "email_link_expired" : "auth_error"
+
+          console.error("Auth callback hash error:", {
+            hashError,
+            errorDescription,
+          })
+          router.replace(`/login?error=${errorParam}`)
+          return
+        }
+
         const { data, error } = await supabase.auth.getSession()
 
         if (error) {
           console.error("Error getting session:", error)
-          router.push("/login?error=auth_error")
+          router.replace("/login?error=auth_error")
           return
         }
 
@@ -55,13 +70,13 @@ export default function AuthCallback() {
           }
 
           updateUser(authUser)
-          router.push("/")
+          router.replace("/")
         } else {
-          router.push("/login")
+          router.replace("/login")
         }
       } catch (error) {
         console.error("Error in auth callback:", error)
-        router.push("/login?error=callback_error")
+        router.replace("/login?error=callback_error")
       }
     }
 

@@ -27,6 +27,9 @@ export interface TicketScan {
   ticket?: {
     ticket_code: string
     status: string
+    ticket_type?: {
+      name: string
+    }
     user?: {
       name: string
       email: string
@@ -35,6 +38,14 @@ export interface TicketScan {
       name: string
     }
   }
+}
+
+async function getAccessToken(): Promise<string | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  return session?.access_token ?? null
 }
 
 // Check if Supabase is properly configured
@@ -251,7 +262,6 @@ export async function removeStaffFromEvent(staffId: string): Promise<{ success: 
 // Escanear ticket (función principal para staff)
 export async function scanTicket(
   ticketCode: string,
-  scannedBy: string,
   scanLocation?: string,
   deviceInfo?: string,
 ): Promise<{ data: TicketScan | null; error: string | null; ticket?: any }> {
@@ -260,157 +270,36 @@ export async function scanTicket(
   }
 
   try {
-    console.log("Scanning ticket:", ticketCode)
-
-    // Primero verificar que el ticket existe y está activo
-    const { data: ticket, error: ticketError } = await supabase
-      .from("tickets")
-      .select(`
-        *,
-        ticket_type:ticket_types(name),
-        user:users(name, email),
-        order:orders(id)
-      `)
-      .eq("ticket_code", ticketCode)
-      .single()
-
-    if (ticketError || !ticket) {
-      console.error("Ticket not found:", ticketError)
-
-      // Registrar intento fallido
-      const { data: scanRecord } = await supabase
-        .from("ticket_scans")
-        .insert([
-          {
-            ticket_id: null,
-            scanned_by: scannedBy,
-            scan_location: scanLocation,
-            device_info: deviceInfo,
-            scan_result: "invalid",
-          },
-        ])
-        .select()
-        .single()
-
-      return {
-        data: scanRecord,
-        error: "Ticket no encontrado o inválido",
-        ticket: null,
-      }
+    const accessToken = await getAccessToken()
+    if (!accessToken) {
+      return { data: null, error: "La sesion de staff no esta disponible. Inicia sesion nuevamente." }
     }
 
-    // Verificar si el ticket ya fue usado
-    if (ticket.status === "used") {
-      // Registrar intento de re-escaneo
-      const { data: scanRecord } = await supabase
-        .from("ticket_scans")
-        .insert([
-          {
-            ticket_id: ticket.id,
-            scanned_by: scannedBy,
-            scan_location: scanLocation,
-            device_info: deviceInfo,
-            scan_result: "already_used",
-          },
-        ])
-        .select()
-        .single()
-
-      return {
-        data: scanRecord,
-        error: "Ticket ya fue utilizado",
-        ticket,
-      }
-    }
-
-    // Verificar si el ticket está activo
-    if (ticket.status !== "active") {
-      const { data: scanRecord } = await supabase
-        .from("ticket_scans")
-        .insert([
-          {
-            ticket_id: ticket.id,
-            scanned_by: scannedBy,
-            scan_location: scanLocation,
-            device_info: deviceInfo,
-            scan_result: "invalid",
-          },
-        ])
-        .select()
-        .single()
-
-      return {
-        data: scanRecord,
-        error: "Ticket no está activo",
-        ticket,
-      }
-    }
-
-    // Marcar ticket como usado de forma atómica para evitar dobles lecturas concurrentes.
-    const { data: updatedTicketRows, error: updateError } = await supabase
-      .from("tickets")
-      .update({ status: "used" })
-      .eq("id", ticket.id)
-      .eq("status", "active")
-      .select("id")
-
-    if (updateError) {
-      console.error("Error updating ticket status:", updateError)
-      return { data: null, error: "Error al procesar ticket" }
-    }
-
-    if (!updatedTicketRows || updatedTicketRows.length === 0) {
-      const { data: scanRecord } = await supabase
-        .from("ticket_scans")
-        .insert([
-          {
-            ticket_id: ticket.id,
-            scanned_by: scannedBy,
-            scan_location: scanLocation,
-            device_info: deviceInfo,
-            scan_result: "already_used",
-          },
-        ])
-        .select()
-        .single()
-
-      return {
-        data: scanRecord,
-        error: "Ticket ya fue utilizado",
-        ticket: {
-          ...ticket,
-          status: "used",
-        },
-      }
-    }
-
-    // Registrar escaneo exitoso
-    const { data: scanRecord, error: scanError } = await supabase
-      .from("ticket_scans")
-      .insert([
-        {
-          ticket_id: ticket.id,
-          scanned_by: scannedBy,
-          scan_location: scanLocation,
-          device_info: deviceInfo,
-          scan_result: "success",
-        },
-      ])
-      .select()
-      .single()
-
-    if (scanError) {
-      console.error("Error recording scan:", scanError)
-    }
-
-    console.log("Ticket scanned successfully:", ticketCode)
-    return {
-      data: scanRecord,
-      error: null,
-      ticket: {
-        ...ticket,
-        status: "used",
+    const response = await fetch("/api/staff/scan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
+      body: JSON.stringify({
+        ticketCode,
+        scanLocation,
+        deviceInfo,
+      }),
+    })
+
+    const payload = (await response.json().catch(() => null)) as
+      | { data?: TicketScan; error?: string; ticket?: any }
+      | null
+
+    if (!response.ok) {
+      return { data: null, error: payload?.error || "Error al escanear ticket", ticket: payload?.ticket }
+    }
+
+    return {
+      data: payload?.data ?? null,
+      error: payload?.error ?? null,
+      ticket: payload?.ticket,
     }
   } catch (error) {
     console.error("Error in scanTicket:", error)
@@ -421,7 +310,6 @@ export async function scanTicket(
 // Obtener historial de escaneos
 export async function getScanHistory(
   eventId?: string,
-  scannedBy?: string,
   limit = 50,
 ): Promise<{ data: TicketScan[] | null; error: string | null }> {
   if (!isSupabaseConfigured()) {
@@ -429,36 +317,30 @@ export async function getScanHistory(
   }
 
   try {
-    console.log("Fetching scan history")
-
-    let query = supabase
-      .from("ticket_scans")
-      .select(`
-        *,
-        ticket:tickets(
-          ticket_code,
-          status,
-          user:users(name, email),
-          ticket_type:ticket_types(
-            event:events(name)
-          )
-        )
-      `)
-      .order("scanned_at", { ascending: false })
-      .limit(limit)
-
-    if (scannedBy) {
-      query = query.eq("scanned_by", scannedBy)
+    const accessToken = await getAccessToken()
+    if (!accessToken) {
+      return { data: null, error: "La sesion de staff no esta disponible. Inicia sesion nuevamente." }
     }
 
-    const { data, error } = await query
-
-    if (error) {
-      console.error("Error fetching scan history:", error)
-      return { data: null, error: error.message }
+    const searchParams = new URLSearchParams()
+    searchParams.set("limit", String(limit))
+    if (eventId) {
+      searchParams.set("eventId", eventId)
     }
 
-    return { data, error: null }
+    const response = await fetch(`/api/staff/scan-history?${searchParams.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    const payload = (await response.json().catch(() => null)) as { data?: TicketScan[]; error?: string } | null
+
+    if (!response.ok) {
+      return { data: null, error: payload?.error || "Error al obtener historial de escaneos" }
+    }
+
+    return { data: payload?.data ?? [], error: null }
   } catch (error) {
     console.error("Error in getScanHistory:", error)
     return { data: null, error: "Error al obtener historial de escaneos" }
