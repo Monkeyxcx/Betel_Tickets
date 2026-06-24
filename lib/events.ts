@@ -14,6 +14,23 @@ function isAbortError(err: unknown): boolean {
   )
 }
 
+const EVENTS_TIMEOUT_MS = 12000
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(label)), timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
+  }
+}
+
 export interface Event {
   id: string
   name: string
@@ -63,12 +80,16 @@ export async function getActiveEvents(): Promise<{ data: Event[] | null; error: 
   try {
     const nowIso = new Date().toISOString()
     console.log("Fetching active events from Supabase")
-    const { data, error } = await supabase
-      .from("events")
-      .select("*")
-      .eq("status", "active")
-      .gte("event_date", nowIso)
-      .order("event_date", { ascending: true })
+    const { data, error } = await withTimeout(
+      supabase
+        .from("events")
+        .select("*")
+        .eq("status", "active")
+        .gte("event_date", nowIso)
+        .order("event_date", { ascending: true }),
+      EVENTS_TIMEOUT_MS,
+      "Events fetch timed out",
+    )
 
     if (error) {
       if (isAbortError(error)) {

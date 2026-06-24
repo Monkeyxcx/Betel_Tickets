@@ -2,19 +2,20 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
-import { Loader2, Ticket, ArrowLeft } from "lucide-react"
-import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
-import { getTicketTypes, getTicketTypesByEvent, createOrder, type TicketType } from "@/lib/tickets"
-import { getEventById, type Event } from "@/lib/events"
+import { type Event } from "@/lib/events"
+import { supabase } from "@/lib/supabase"
+import { createOrder, type TicketType } from "@/lib/tickets"
+import { ArrowLeft, Loader2, Ticket } from "lucide-react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export default function TicketsPage() {
   const searchParams = useSearchParams()
@@ -37,47 +38,33 @@ export default function TicketsPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        if (eventId) {
-          // Cargar información del evento específico
-          const { data: eventData, error: eventError } = await getEventById(eventId)
-          if (eventError) {
-            setError(eventError)
-          } else if (eventData) {
-            setEvent(eventData)
-          }
+        const endpoint = eventId ? `/api/tickets/catalog?event=${encodeURIComponent(eventId)}` : "/api/tickets/catalog"
+        const response = await fetch(endpoint, { cache: "no-store" })
+        const payload = await response.json()
 
-          // Cargar tipos de tickets del evento específico
-          const { data: ticketTypesData, error: ticketTypesError } = await getTicketTypesByEvent(eventId)
-          if (ticketTypesError) {
-            setError(ticketTypesError)
-          } else if (ticketTypesData) {
-            setTicketTypes(ticketTypesData)
+        if (!response.ok) {
+          setError(payload.error || "Error al cargar la información")
+          return
+        }
 
-            // Si hay un tipo inicial, seleccionarlo
-            if (initialTicketType) {
-              const initialType = ticketTypesData.find((t) => t.name === initialTicketType)
-              if (initialType) {
-                setTicketTypeId(initialType.id)
-                setSelectedTicketType(initialType)
-              }
-            } else if (ticketTypesData.length > 0) {
-              // Seleccionar el primer tipo por defecto
-              setTicketTypeId(ticketTypesData[0].id)
-              setSelectedTicketType(ticketTypesData[0])
-            }
+        const loadedEvent = (payload.data?.event as Event | null) ?? null
+        const loadedTicketTypes = Array.isArray(payload.data?.ticketTypes) ? (payload.data.ticketTypes as TicketType[]) : []
+
+        setEvent(loadedEvent)
+        setTicketTypes(loadedTicketTypes)
+
+        if (initialTicketType) {
+          const initialType = loadedTicketTypes.find((t) => t.name === initialTicketType)
+          if (initialType) {
+            setTicketTypeId(initialType.id)
+            setSelectedTicketType(initialType)
+            return
           }
-        } else {
-          // Cargar todos los tipos de tickets si no hay evento específico
-          const { data: allTicketTypes, error: allTicketTypesError } = await getTicketTypes()
-          if (allTicketTypesError) {
-            setError(allTicketTypesError)
-          } else if (allTicketTypes) {
-            setTicketTypes(allTicketTypes)
-            if (allTicketTypes.length > 0) {
-              setTicketTypeId(allTicketTypes[0].id)
-              setSelectedTicketType(allTicketTypes[0])
-            }
-          }
+        }
+
+        if (loadedTicketTypes.length > 0) {
+          setTicketTypeId(loadedTicketTypes[0].id)
+          setSelectedTicketType(loadedTicketTypes[0])
         }
       } catch (error) {
         setError("Error al cargar la información")
@@ -116,7 +103,17 @@ export default function TicketsPage() {
     setError("")
 
     try {
-      const { data: order, error: orderError } = await createOrder(user.id, selectedTicketType.id, quantity)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        setError("Tu sesion expiro. Inicia sesion nuevamente para continuar.")
+        router.push("/login")
+        return
+      }
+
+      const { data: order, error: orderError } = await createOrder(selectedTicketType.id, quantity, session.access_token)
 
       if (orderError) {
         setError(orderError)

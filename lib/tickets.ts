@@ -181,98 +181,32 @@ export async function deleteTicketType(ticketId: string): Promise<{ success: boo
   }
 }
 
-// Generar código único de ticket
-function generateTicketCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-  let result = ""
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
-}
-
-// Crear orden y tickets
+// Crear orden desde endpoint del servidor
 export async function createOrder(
-  userId: string,
   ticketTypeId: string,
   quantity: number,
+  accessToken: string,
 ): Promise<{ data: Order | null; error: string | null }> {
   try {
-    console.log("Creating order for user:", userId, "ticket type:", ticketTypeId, "quantity:", quantity)
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        ticketTypeId,
+        quantity,
+      }),
+    })
 
-    // Obtener información del tipo de ticket
-    const { data: ticketType, error: ticketTypeError } = await supabase
-      .from("ticket_types")
-      .select("*, events(*)")
-      .eq("id", ticketTypeId)
-      .single()
+    const payload = (await response.json().catch(() => null)) as { data?: Order; error?: string } | null
 
-    if (ticketTypeError || !ticketType) {
-      if (!isAbortError(ticketTypeError)) console.error("Error fetching ticket type:", ticketTypeError)
-      return { data: null, error: "Tipo de ticket no encontrado" }
+    if (!response.ok) {
+      return { data: null, error: payload?.error || "Error al crear la orden" }
     }
 
-    // Verificar disponibilidad
-    if (ticketType.available_quantity < quantity) {
-      return { data: null, error: "No hay suficientes tickets disponibles" }
-    }
-
-    const totalAmount = ticketType.price * quantity
-
-    // Crear la orden
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert([
-        {
-          user_id: userId,
-          event_id: ticketType.event_id,
-          total_amount: totalAmount,
-          status: "completed", // Por ahora marcamos como completado
-        },
-      ])
-      .select()
-      .single()
-
-    if (orderError || !order) {
-      if (!isAbortError(orderError)) console.error("Error creating order:", orderError)
-      return { data: null, error: "Error al crear la orden" }
-    }
-
-    // Crear los tickets individuales
-    const ticketsToCreate = []
-    for (let i = 0; i < quantity; i++) {
-      ticketsToCreate.push({
-        order_id: order.id,
-        ticket_type_id: ticketTypeId,
-        user_id: userId,
-        ticket_code: generateTicketCode(),
-        status: "active",
-      })
-    }
-
-    const { error: ticketsError } = await supabase.from("tickets").insert(ticketsToCreate)
-
-    if (ticketsError) {
-      if (!isAbortError(ticketsError)) console.error("Error creating tickets:", ticketsError)
-      // Si falla la creación de tickets, eliminar la orden
-      await supabase.from("orders").delete().eq("id", order.id)
-      return { data: null, error: "Error al crear los tickets" }
-    }
-
-    // Actualizar cantidad disponible
-    const { error: updateError } = await supabase
-      .from("ticket_types")
-      .update({
-        available_quantity: ticketType.available_quantity - quantity,
-      })
-      .eq("id", ticketTypeId)
-
-    if (updateError) {
-      if (!isAbortError(updateError)) console.error("Error updating ticket quantity:", updateError)
-    }
-
-    console.log("Order created successfully:", order.id)
-    return { data: order, error: null }
+    return { data: payload?.data ?? null, error: null }
   } catch (error) {
     if (!isAbortError(error)) console.error("Error in createOrder:", error)
     return { data: null, error: "Error al procesar la orden" }

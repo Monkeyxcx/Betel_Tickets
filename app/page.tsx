@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { CalendarDays, Clock, MapPin, Ticket, Loader2, Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
 import { EventCarousel } from "@/components/event-carousel"
-import { getActiveEvents, type Event } from "@/lib/events"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { type Event } from "@/lib/events"
+import { CalendarDays, Clock, Loader2, MapPin, Search, Ticket } from "lucide-react"
+import Link from "next/link"
+import { useEffect, useState } from "react"
 
 export default function Home() {
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>([])
@@ -15,12 +15,29 @@ export default function Home() {
   const [theaterEvents, setTheaterEvents] = useState<Event[]>([])
   const [sportsEvents, setSportsEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const { data: all } = await getActiveEvents()
+        setLoadError(null)
+        setLoading(true)
+        const response = await fetch("/api/events/active", { cache: "no-store" })
+        const payload = await response.json()
+
+        if (!response.ok) {
+          setLoadError("No se pudieron cargar los eventos. Intenta de nuevo.")
+          setAllEvents([])
+          setFeaturedEvents([])
+          setMusicEvents([])
+          setTheaterEvents([])
+          setSportsEvents([])
+          return
+        }
+
+        const all = Array.isArray(payload.data) ? (payload.data as Event[]) : []
         const activeEvents = all ?? []
 
         setAllEvents(activeEvents)
@@ -30,13 +47,14 @@ export default function Home() {
         setSportsEvents(activeEvents.filter((event) => event.category === "deportes"))
       } catch (error) {
         console.error("Error loading events:", error)
+        setLoadError("No se pudieron cargar los eventos. Intenta de nuevo.")
       } finally {
         setLoading(false)
       }
     }
 
     loadEvents()
-  }, [])
+  }, [reloadKey])
 
   const filteredEvents = allEvents.filter(
     (event) =>
@@ -53,6 +71,17 @@ export default function Home() {
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto" />
           <p className="mt-2 text-muted-foreground">Cargando eventos...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">{loadError}</p>
+          <Button onClick={() => setReloadKey((k) => k + 1)}>Reintentar</Button>
         </div>
       </div>
     )

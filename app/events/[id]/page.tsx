@@ -5,8 +5,8 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CalendarDays, Clock, MapPin, Ticket, Loader2 } from "lucide-react"
-import { getEventById, type Event } from "@/lib/events"
-import { getTicketTypesByEvent, type TicketType } from "@/lib/tickets"
+import { type Event } from "@/lib/events"
+import { type TicketType } from "@/lib/tickets"
 
 export default function EventDetailsPage() {
   const params = useParams()
@@ -28,16 +28,19 @@ export default function EventDetailsPage() {
       console.log("Loading event with ID:", eventId) // Debug
 
       try {
-        // Cargar información del evento
-        const { data: eventData, error: eventError } = await getEventById(eventId)
+        const response = await fetch(`/api/events/${eventId}`, { cache: "no-store" })
+        const payload = await response.json()
 
-        console.log("Event data:", eventData, "Error:", eventError) // Debug
+        console.log("Event payload:", payload) // Debug
 
-        if (eventError) {
-          setError(eventError)
+        if (!response.ok) {
+          setError(payload.error || "Error al cargar el evento")
           setLoading(false)
           return
         }
+
+        const eventData = payload.data?.event as Event | null
+        const ticketTypesData = Array.isArray(payload.data?.ticketTypes) ? (payload.data.ticketTypes as TicketType[]) : []
 
         if (!eventData) {
           setError("Evento no encontrado")
@@ -46,17 +49,7 @@ export default function EventDetailsPage() {
         }
 
         setEvent(eventData)
-
-        // Cargar tipos de tickets para este evento
-        const { data: ticketTypesData, error: ticketTypesError } = await getTicketTypesByEvent(eventId)
-
-        console.log("Ticket types data:", ticketTypesData, "Error:", ticketTypesError) // Debug
-
-        if (ticketTypesError) {
-          console.error("Error loading ticket types:", ticketTypesError)
-        } else if (ticketTypesData) {
-          setTicketTypes(ticketTypesData)
-        }
+        setTicketTypes(ticketTypesData)
       } catch (error) {
         console.error("Error in loadEventData:", error) // Debug
         setError("Error al cargar el evento")
